@@ -22,3 +22,6 @@ testpaths = ["tests"]
 [tool.setuptools.packages.find]
 include = ["app*"]
 exclude = ["alembic*"]
+
+[tool.ruff.lint.per-file-ignores]
+"app/api/routes/*.py" = ["B008"]
