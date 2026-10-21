@@ -25,7 +25,9 @@ SWITCH_STARTED=false
 DEPLOY_SUCCESS=false
 
 # Impede dois deploys simultâneos.
-exec 9>/var/lock/aws-pratice-frontend.lock
+LOCK_FILE="${DEPLOY_LOCK_FILE:-/var/lock/aws-pratice-frontend.lock}"
+
+exec 9>"$LOCK_FILE"
 flock -n 9 || {
   echo "ERRO: já existe um deploy do frontend em andamento."
   exit 1
