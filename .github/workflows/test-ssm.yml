@@ -18,7 +18,7 @@ jobs:
           role-to-assume: arn:aws:iam::242627333067:role/aws-lab-github-deploy-role
           aws-region: us-east-2
 
-      - name: Test SSM connection
+      - name: Test deploy script via SSM
         env:
           INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
         run: |
@@ -30,6 +30,6 @@ jobs:
           aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name AWS-RunShellScript \
-            --parameters '{"commands":["echo GitHub Actions conectado a EC2 via SSM","hostname"]}' \
+            --parameters '{"commands":["test -x /home/ec2-user/aws-pratice/deploy-api.sh && echo Script acessivel pelo SSM"]}' \
             --query 'Command.CommandId' \
             --output text
