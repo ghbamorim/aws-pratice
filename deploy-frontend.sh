@@ -41,6 +41,10 @@ if [[ -e "$TARGET" ]]; then
   exit 1
 fi
 
+echo "Configurando permissões para o Nginx..."
+
+find "$STAGING" -type d -exec chmod 755 {} \;
+find "$STAGING" -type f -exec chmod 644 {} \;
 mv "$STAGING" "$TARGET"
 
 if [[ -L "$WEBROOT" ]]; then
