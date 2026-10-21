@@ -39,3 +39,4 @@ coverage/
 .DS_Store
 Thumbs.db
 *.before-fullstack-lab.bak
+.env.production
