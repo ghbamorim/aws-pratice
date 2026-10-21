@@ -11,12 +11,12 @@ fi
 
 IMAGE="ghcr.io/ghbamorim/aws-pratice-frontend:$VERSION"
 
-BASE="/var/www"
+BASE="${DEPLOY_BASE:-/var/www}"
 RELEASES="$BASE/aws-pratice-releases"
 WEBROOT="$BASE/aws-pratice"
 TARGET="$RELEASES/$VERSION"
 
-HEALTH_URL="https://aws-lab-ghbamorim.duckdns.org/"
+HEALTH_URL="${HEALTH_URL:-https://aws-lab-ghbamorim.duckdns.org/}"
 
 CONTAINER=""
 STAGING=""
