@@ -1,0 +1,31 @@
+name: Test Frontend Rollback
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-frontend-rollback:
+    name: Test automatic rollback
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Bash syntax
+        run: |
+          bash -n deploy-frontend.sh
+          bash -n tests/test-frontend-rollback.sh
+
+      - name: Run rollback test
+        run: bash tests/test-frontend-rollback.sh
