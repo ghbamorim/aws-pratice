@@ -50,6 +50,7 @@ jobs:
   deploy:
     name: Deploy API to EC2
     needs: publish
+    if: github.event_name == 'release'
     runs-on: ubuntu-latest
 
     permissions:
