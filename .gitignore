@@ -33,6 +33,7 @@ node_modules/
 dist/
 coverage/
 
+
 # IDE and OS
 .vscode/
 .idea/
@@ -40,3 +41,11 @@ coverage/
 Thumbs.db
 *.before-fullstack-lab.bak
 .env.production
+
+# Python coverage
+.coverage
+.coverage.*
+htmlcov/
+
+# Python package metadata
+*.egg-info/
