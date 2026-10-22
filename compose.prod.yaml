@@ -1,8 +1,0 @@
-services:
-  api:
-    image: ghcr.io/ghbamorim/aws-pratice-api:${APP_VERSION:-v1.0.0}
-    restart: unless-stopped
-    env_file:
-      - .env.production
-    ports:
-      - "127.0.0.1:8001:8000"
