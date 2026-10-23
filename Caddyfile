@@ -1,0 +1,3 @@
+aws-lab-ghbamorim.duckdns.org {
+    reverse_proxy frontend:80
+}
