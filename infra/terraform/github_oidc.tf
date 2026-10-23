@@ -29,8 +29,11 @@ resource "aws_iam_role" "github_actions" {
       Condition = {
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          "token.actions.githubusercontent.com:sub" = "repo:ghbamorim/aws-pratice:ref:refs/heads/main"
         }
+        StringLike = {
+          "token.actions.githubusercontent.com:sub" = "repo:ghbamorim@79848031/aws-pratice@1427495511:ref:refs/tags/v*"
+        }
+
       }
     }]
   })
