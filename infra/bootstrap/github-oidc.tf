@@ -64,6 +64,7 @@ data "aws_iam_policy_document" "github_ecr" {
 
     actions = [
       "ecr:BatchCheckLayerAvailability",
+      "ecr:DescribeImages",
       "ecr:CompleteLayerUpload",
       "ecr:InitiateLayerUpload",
       "ecr:PutImage",
