@@ -11,21 +11,6 @@ services:
     image: ${ECR_REGISTRY}/aws-pratice-frontend:${IMAGE_TAG}
     depends_on:
       - api
-    restart: unless-stopped
-
-  caddy:
-    image: caddy:2
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - frontend
+      - "127.0.0.1:8080:80"
     restart: unless-stopped
-
-volumes:
-  caddy_data:
-  caddy_config:
