@@ -31,13 +31,11 @@ jobs:
         run: |
           git init -q
           git remote add origin https://github.com/ghbamorim/aws-pratice.git
-          git fetch --depth=1 origin "refs/tags/$RELEASE_TAG"
-          SHA="$(git rev-parse FETCH_HEAD^{commit})"
+          git fetch origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
 
-          git fetch origin +refs/heads/main:refs/remotes/origin/main
-          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
-            git fetch --unshallow origin
-          fi
+          SHA="$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
 
           if ! git merge-base --is-ancestor "$SHA" origin/main; then
             echo "Release commit is not part of main" >&2
