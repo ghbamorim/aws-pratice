@@ -32,11 +32,12 @@ data "aws_iam_policy_document" "github_assume_role" {
     }
 
     condition {
-      test     = "StringEquals"
+      test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
 
       values = [
-        "repo:ghbamorim@79848031/aws-pratice@1427495511:ref:refs/heads/main"
+        "repo:ghbamorim@79848031/aws-pratice@1427495511:ref:refs/heads/main",
+        "repo:ghbamorim@79848031/aws-pratice@1427495511:ref:refs/tags/v*"
       ]
     }
   }
