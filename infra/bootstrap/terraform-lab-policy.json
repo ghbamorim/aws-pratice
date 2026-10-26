@@ -2,130 +2,58 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "ManageLabEcrRepositories",
+      "Sid": "StateBucket",
       "Effect": "Allow",
-      "Action": [
-        "ecr:CreateRepository",
-        "ecr:DescribeRepositories",
-        "ecr:ListTagsForResource",
-        "ecr:TagResource",
-        "ecr:UntagResource",
-        "ecr:PutImageTagMutability",
-        "ecr:PutImageScanningConfiguration",
-        "ecr:DeleteRepository"
-      ],
-      "Resource": [
-        "arn:aws:ecr:us-east-2:242627333067:repository/aws-pratice-api",
-        "arn:aws:ecr:us-east-2:242627333067:repository/aws-pratice-frontend"
-      ]
+      "Action": ["s3:ListBucket", "s3:GetBucketLocation"],
+      "Resource": "arn:aws:s3:::aws-pratice-tfstate-280bb6556d35eca69b1d402713"
     },
     {
-      "Sid": "ReadEc2Network",
+      "Sid": "StateObjects",
       "Effect": "Allow",
-      "Action": [
-        "ec2:DescribeVpcs",
-        "ec2:DescribeVpcAttribute",
-        "ec2:DescribeSubnets",
-        "ec2:DescribeRouteTables",
-        "ec2:DescribeInternetGateways",
-        "ec2:DescribeImages",
-        "ec2:DescribeInstanceTypes"
-      ],
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::aws-pratice-tfstate-280bb6556d35eca69b1d402713/infra/terraform.tfstate"
+    },
+    {
+      "Sid": "StateLock",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::aws-pratice-tfstate-280bb6556d35eca69b1d402713/infra/terraform.tfstate.tflock"
+    },
+    {
+      "Sid": "ReadEc2",
+      "Effect": "Allow",
+      "Action": "ec2:Describe*",
       "Resource": "*"
     },
     {
-      "Sid": "ManageLabSecurityGroup",
-      "Effect": "Allow",
-      "Action": [
-        "ec2:CreateSecurityGroup",
-        "ec2:DeleteSecurityGroup",
-        "ec2:DescribeSecurityGroups",
-        "ec2:DescribeSecurityGroupRules",
-        "ec2:AuthorizeSecurityGroupIngress",
-        "ec2:AuthorizeSecurityGroupEgress",
-        "ec2:RevokeSecurityGroupIngress",
-        "ec2:RevokeSecurityGroupEgress",
-        "ec2:CreateTags"
-      ],
-      "Resource": "*",
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestedRegion": "us-east-2"
-        }
-      }
-    },
-    {
-      "Sid": "ManageLabEc2Role",
-      "Effect": "Allow",
-      "Action": [
-        "iam:CreateRole",
-        "iam:GetRole",
-        "iam:UpdateAssumeRolePolicy",
-        "iam:TagRole",
-        "iam:UntagRole",
-        "iam:AttachRolePolicy",
-        "iam:DetachRolePolicy",
-        "iam:ListAttachedRolePolicies",
-        "iam:ListRolePolicies",
-        "iam:DeleteRole"
-      ],
-      "Resource": "arn:aws:iam::242627333067:role/aws-pratice-lab-ec2-role"
-    },
-    {
-      "Sid": "ManageLabEc2InstanceProfile",
-      "Effect": "Allow",
-      "Action": [
-        "iam:CreateInstanceProfile",
-        "iam:GetInstanceProfile",
-        "iam:AddRoleToInstanceProfile",
-        "iam:RemoveRoleFromInstanceProfile",
-        "iam:DeleteInstanceProfile",
-        "iam:TagInstanceProfile"
-      ],
-      "Resource": "arn:aws:iam::242627333067:instance-profile/aws-pratice-lab-ec2-profile"
-    },
-    {
-      "Sid": "RestrictLabRolePolicyAttachment",
-      "Effect": "Deny",
-      "Action": "iam:AttachRolePolicy",
-      "Resource": "arn:aws:iam::242627333067:role/aws-pratice-lab-ec2-role",
-      "Condition": {
-        "ArnNotEquals": {
-          "iam:PolicyARN": "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-        }
-      }
-    },
-    {
-      "Sid": "ManageLabEc2InlinePolicy",
-      "Effect": "Allow",
-      "Action": [
-        "iam:PutRolePolicy",
-        "iam:GetRolePolicy",
-        "iam:DeleteRolePolicy"
-      ],
-      "Resource": "arn:aws:iam::242627333067:role/aws-pratice-lab-ec2-role"
-    },
-    {
-      "Sid": "PassLabRoleToEc2",
-      "Effect": "Allow",
-      "Action": "iam:PassRole",
-      "Resource": "arn:aws:iam::242627333067:role/aws-pratice-lab-ec2-role",
-      "Condition": {
-        "StringEquals": {
-          "iam:PassedToService": "ec2.amazonaws.com"
-        }
-      }
-    },
-    {
-      "Sid": "ManageLabEc2Instance",
+      "Sid": "ManageEc2",
       "Effect": "Allow",
       "Action": [
         "ec2:RunInstances",
         "ec2:TerminateInstances",
-        "ec2:DescribeInstances",
-        "ec2:DescribeInstanceStatus",
-        "ec2:DescribeVolumes",
-        "ec2:DescribeTags"
+        "ec2:StartInstances",
+        "ec2:StopInstances",
+        "ec2:ModifyInstanceAttribute",
+        "ec2:ModifyInstanceCreditSpecification",
+        "ec2:CreateTags",
+        "ec2:DeleteTags",
+        "ec2:CreateSecurityGroup",
+        "ec2:DeleteSecurityGroup",
+        "ec2:AuthorizeSecurityGroupIngress",
+        "ec2:AuthorizeSecurityGroupEgress",
+        "ec2:RevokeSecurityGroupIngress",
+        "ec2:RevokeSecurityGroupEgress",
+        "ec2:ModifySecurityGroupRules",
+        "ec2:CreateVolume",
+        "ec2:DeleteVolume",
+        "ec2:AttachVolume",
+        "ec2:DetachVolume",
+        "ec2:ModifyVolume",
+        "ec2:AllocateAddress",
+        "ec2:AssociateAddress",
+        "ec2:DisassociateAddress",
+        "ec2:ReleaseAddress",
+        "ec2:DescribeAddresses"
       ],
       "Resource": "*",
       "Condition": {
@@ -135,7 +63,7 @@
       }
     },
     {
-      "Sid": "DenyOtherEc2InstanceTypes",
+      "Sid": "LimitInstanceType",
       "Effect": "Deny",
       "Action": "ec2:RunInstances",
       "Resource": "arn:aws:ec2:us-east-2:242627333067:instance/*",
@@ -146,87 +74,35 @@
       }
     },
     {
-      "Sid": "ReadLabEc2InstanceAttributes",
-      "Effect": "Allow",
-      "Action": ["ec2:DescribeInstanceAttribute"],
-      "Resource": "arn:aws:ec2:us-east-2:242627333067:instance/*"
-    },
-    {
-      "Sid": "ReadEc2Resources",
+      "Sid": "EcrRepositories",
       "Effect": "Allow",
       "Action": [
-        "ec2:DescribeVpcs",
-        "ec2:DescribeVpcAttribute",
-        "ec2:DescribeSubnets",
-        "ec2:DescribeRouteTables",
-        "ec2:DescribeInternetGateways",
-        "ec2:DescribeImages",
-        "ec2:DescribeInstanceTypes",
-        "ec2:DescribeInstances",
-        "ec2:DescribeInstanceStatus",
-        "ec2:DescribeInstanceCreditSpecifications",
-        "ec2:DescribeInstanceAttribute",
-        "ec2:DescribeVolumes",
-        "ec2:DescribeVolumeStatus",
-        "ec2:DescribeTags",
-        "ec2:DescribeNetworkInterfaces",
-        "ec2:DescribeSecurityGroups",
-        "ec2:DescribeSecurityGroupRules"
+        "ecr:CreateRepository",
+        "ecr:DescribeRepositories",
+        "ecr:DeleteRepository",
+        "ecr:ListTagsForResource",
+        "ecr:TagResource",
+        "ecr:UntagResource",
+        "ecr:PutImageTagMutability",
+        "ecr:PutImageScanningConfiguration",
+        "ecr:PutLifecyclePolicy",
+        "ecr:GetLifecyclePolicy",
+        "ecr:DeleteLifecyclePolicy",
+        "ecr:DescribeImages",
+        "ecr:BatchDeleteImage",
+        "ecr:GetRepositoryPolicy",
+        "ecr:SetRepositoryPolicy",
+        "ecr:DeleteRepositoryPolicy"
       ],
-      "Resource": "*"
+      "Resource": [
+        "arn:aws:ecr:us-east-2:242627333067:repository/aws-pratice-api",
+        "arn:aws:ecr:us-east-2:242627333067:repository/aws-pratice-frontend"
+      ]
     },
     {
-      "Sid": "ManageLabEc2CpuCredits",
+      "Sid": "ReadRds",
       "Effect": "Allow",
-      "Action": ["ec2:ModifyInstanceCreditSpecification"],
-      "Resource": "arn:aws:ec2:us-east-2:242627333067:instance/i-0cb193a8095fccff7"
-    },
-    {
-      "Sid": "ManageGitHubOIDCProvider",
-      "Effect": "Allow",
-      "Action": [
-        "iam:CreateOpenIDConnectProvider",
-        "iam:GetOpenIDConnectProvider",
-        "iam:TagOpenIDConnectProvider",
-        "iam:DeleteOpenIDConnectProvider"
-      ],
-      "Resource": "arn:aws:iam::242627333067:oidc-provider/token.actions.githubusercontent.com"
-    },
-    {
-      "Sid": "ManageGitHubActionsRole",
-      "Effect": "Allow",
-      "Action": [
-        "iam:CreateRole",
-        "iam:GetRole",
-        "iam:DeleteRole",
-        "iam:UpdateAssumeRolePolicy",
-        "iam:TagRole",
-        "iam:UntagRole",
-        "iam:PutRolePolicy",
-        "iam:GetRolePolicy",
-        "iam:DeleteRolePolicy",
-        "iam:ListRolePolicies",
-        "iam:ListAttachedRolePolicies",
-        "iam:ListInstanceProfilesForRole"
-      ],
-      "Resource": "arn:aws:iam::242627333067:role/aws-pratice-lab-github-actions-role"
-    },
-    {
-      "Sid": "ManageLabRds",
-      "Effect": "Allow",
-      "Action": [
-        "rds:CreateDBInstance",
-        "rds:DeleteDBInstance",
-        "rds:ModifyDBInstance",
-        "rds:DescribeDBInstances",
-        "rds:CreateDBSubnetGroup",
-        "rds:DeleteDBSubnetGroup",
-        "rds:ModifyDBSubnetGroup",
-        "rds:DescribeDBSubnetGroups",
-        "rds:ListTagsForResource",
-        "rds:AddTagsToResource",
-        "rds:RemoveTagsFromResource"
-      ],
+      "Action": ["rds:Describe*", "rds:ListTagsForResource"],
       "Resource": "*",
       "Condition": {
         "StringEquals": {
@@ -235,27 +111,142 @@
       }
     },
     {
-      "Sid": "UseSecretsManagerKmsKey",
+      "Sid": "ReadIam",
       "Effect": "Allow",
-      "Action": ["kms:GenerateDataKey", "kms:Decrypt"],
-      "Resource": "arn:aws:kms:us-east-2:242627333067:key/e468e02c-07cd-4e53-ac2c-03cd7d1d3aad",
+      "Action": [
+        "iam:GetRole",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies",
+        "iam:GetRolePolicy",
+        "iam:GetInstanceProfile",
+        "iam:ListInstanceProfilesForRole",
+        "iam:GetOpenIDConnectProvider",
+        "iam:ListOpenIDConnectProviders",
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion",
+        "iam:ListPolicyVersions",
+        "iam:ListRoleTags"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ReadSecrets",
+      "Effect": "Allow",
+      "Action": ["secretsmanager:DescribeSecret", "secretsmanager:ListSecrets"],
+      "Resource": "*",
       "Condition": {
         "StringEquals": {
-          "kms:ViaService": "secretsmanager.us-east-2.amazonaws.com"
+          "aws:RequestedRegion": "us-east-2"
         }
       }
     },
     {
-      "Sid": "DescribeSecretsManagerKmsKey",
+      "Sid": "ReadKms",
       "Effect": "Allow",
-      "Action": "kms:DescribeKey",
-      "Resource": "arn:aws:kms:us-east-2:242627333067:key/e468e02c-07cd-4e53-ac2c-03cd7d1d3aad"
+      "Action": ["kms:DescribeKey", "kms:ListAliases"],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
     },
     {
-      "Sid": "CreateRdsManagedSecret",
+      "Sid": "ManageLabDatabase",
       "Effect": "Allow",
-      "Action": ["secretsmanager:CreateSecret", "secretsmanager:TagResource"],
-      "Resource": "arn:aws:secretsmanager:us-east-2:242627333067:secret:rds!*"
+      "Action": [
+        "rds:CreateDBInstance",
+        "rds:ModifyDBInstance",
+        "rds:DeleteDBInstance",
+        "rds:AddTagsToResource",
+        "rds:RemoveTagsFromResource"
+      ],
+      "Resource": [
+        "arn:aws:rds:us-east-2:242627333067:db:aws-pratice-db",
+        "arn:aws:rds:us-east-2:242627333067:subgrp:aws-pratice-db-subnet-group"
+      ]
+    },
+    {
+      "Sid": "ManageLabDatabaseSubnetGroup",
+      "Effect": "Allow",
+      "Action": [
+        "rds:CreateDBSubnetGroup",
+        "rds:ModifyDBSubnetGroup",
+        "rds:DeleteDBSubnetGroup",
+        "rds:AddTagsToResource",
+        "rds:RemoveTagsFromResource"
+      ],
+      "Resource": "arn:aws:rds:us-east-2:242627333067:subgrp:aws-pratice-db-subnet-group"
+    },
+    {
+      "Sid": "Ec2RoleManage",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::242627333067:role/aws-pratice-ec2-role"
+    },
+    {
+      "Sid": "Ec2InstanceProfile",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateInstanceProfile",
+        "iam:DeleteInstanceProfile",
+        "iam:AddRoleToInstanceProfile",
+        "iam:RemoveRoleFromInstanceProfile",
+        "iam:TagInstanceProfile",
+        "iam:UntagInstanceProfile"
+      ],
+      "Resource": "arn:aws:iam::242627333067:instance-profile/aws-pratice-ec2-profile"
+    },
+    {
+      "Sid": "PassEc2Role",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::242627333067:role/aws-pratice-ec2-role",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "ec2.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "ManageHttpsSsm",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:CreateDocument",
+        "ssm:UpdateDocument",
+        "ssm:UpdateDocumentDefaultVersion",
+        "ssm:DeleteDocument",
+        "ssm:DescribeDocument",
+        "ssm:GetDocument",
+        "ssm:ListDocumentVersions",
+        "ssm:AddTagsToResource",
+        "ssm:RemoveTagsFromResource",
+        "ssm:ListTagsForResource",
+        "ssm:CreateAssociation",
+        "ssm:UpdateAssociation",
+        "ssm:DeleteAssociation",
+        "ssm:DescribeAssociation",
+        "ssm:ListAssociations",
+        "ssm:DescribeDocumentPermission",
+        "ssm:DescribeAssociationExecutions",
+        "ssm:DescribeAssociationExecutionTargets",
+        "ssm:GetCommandInvocation",
+        "ssm:ListCommandInvocations"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
     }
   ]
 }
