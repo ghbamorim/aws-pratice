@@ -83,7 +83,7 @@ jobs:
             --region "$AWS_REGION" \
             --filters \
               "Name=instance-state-name,Values=running" \
-              "Name=tag:Name,Values=aws-pratice" \
+              "Name=tag:Name,Values=aws-pratice-app" \
             --query 'Reservations[].Instances[].InstanceId' \
             --output text)
 

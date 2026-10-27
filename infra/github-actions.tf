@@ -1,3 +1,4 @@
+
 data "aws_caller_identity" "github_actions" {}
 
 resource "aws_iam_openid_connect_provider" "github_actions" {
@@ -61,6 +62,13 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
           aws_ecr_repository.api.arn,
           aws_ecr_repository.frontend.arn
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeInstances"
+        ]
+        Resource = "*"
       },
       {
         Effect = "Allow"
