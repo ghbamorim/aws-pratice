@@ -11,6 +11,26 @@ NGINX_CONF="$NGINX_DIR/default.conf"
 CERT_FILE="$CERT_DIR/live/$DOMAIN/fullchain.pem"
 KEY_FILE="$CERT_DIR/live/$DOMAIN/privkey.pem"
 
+# Wait for the EC2 initialization and application deployment.
+echo "Waiting for application initialization..."
+
+for attempt in $(seq 1 60); do
+    if [ -f "$APP_DIR/docker-compose.yml" ] \
+        && [ -f "$APP_DIR/api.env" ] \
+        && docker info >/dev/null 2>&1 \
+        && docker compose -f "$APP_DIR/docker-compose.yml" ps --status running --services 2>/dev/null | grep -qx frontend \
+        && docker compose -f "$APP_DIR/docker-compose.yml" ps --status running --services 2>/dev/null | grep -qx api; then
+        break
+    fi
+
+    if [ "$attempt" -eq 60 ]; then
+        echo "Application initialization timed out."
+        exit 1
+    fi
+
+    sleep 10
+done
+
 cd "$APP_DIR"
 
 # Wait for Docker and the application to become available.
