@@ -53,7 +53,40 @@
         "ec2:AssociateAddress",
         "ec2:DisassociateAddress",
         "ec2:ReleaseAddress",
-        "ec2:DescribeAddresses"
+        "ec2:DescribeAddresses",
+        "ec2:AssociateIamInstanceProfile",
+        "ec2:DisassociateIamInstanceProfile",
+        "ec2:ReplaceIamInstanceProfileAssociation"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Sid": "ManageLabNetwork",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:CreateVpc",
+        "ec2:DeleteVpc",
+        "ec2:ModifyVpcAttribute",
+        "ec2:CreateSubnet",
+        "ec2:DeleteSubnet",
+        "ec2:ModifySubnetAttribute",
+        "ec2:CreateInternetGateway",
+        "ec2:DeleteInternetGateway",
+        "ec2:AttachInternetGateway",
+        "ec2:DetachInternetGateway",
+        "ec2:CreateRouteTable",
+        "ec2:DeleteRouteTable",
+        "ec2:CreateRoute",
+        "ec2:ReplaceRoute",
+        "ec2:DeleteRoute",
+        "ec2:AssociateRouteTable",
+        "ec2:DisassociateRouteTable",
+        "ec2:ReplaceRouteTableAssociation"
       ],
       "Resource": "*",
       "Condition": {
@@ -162,8 +195,8 @@
         "rds:RemoveTagsFromResource"
       ],
       "Resource": [
-        "arn:aws:rds:us-east-2:242627333067:db:aws-pratice-db",
-        "arn:aws:rds:us-east-2:242627333067:subgrp:aws-pratice-db-subnet-group"
+        "arn:aws:rds:us-east-2:242627333067:db:aws-pratice-postgres",
+        "arn:aws:rds:us-east-2:242627333067:subgrp:aws-pratice-postgres-subnets"
       ]
     },
     {
@@ -176,7 +209,7 @@
         "rds:AddTagsToResource",
         "rds:RemoveTagsFromResource"
       ],
-      "Resource": "arn:aws:rds:us-east-2:242627333067:subgrp:aws-pratice-db-subnet-group"
+      "Resource": "arn:aws:rds:us-east-2:242627333067:subgrp:aws-pratice-postgres-subnets"
     },
     {
       "Sid": "Ec2RoleManage",
@@ -239,8 +272,23 @@
         "ssm:DescribeAssociationExecutions",
         "ssm:DescribeAssociationExecutionTargets",
         "ssm:GetCommandInvocation",
-        "ssm:ListCommandInvocations"
+        "ssm:ListCommandInvocations",
+        "ssm:SendCommand",
+        "ssm:StartSession",
+        "ssm:TerminateSession",
+        "ssm:ResumeSession"
       ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Sid": "DescribeSsmInstances",
+      "Effect": "Allow",
+      "Action": ["ssm:DescribeInstanceInformation"],
       "Resource": "*",
       "Condition": {
         "StringEquals": {

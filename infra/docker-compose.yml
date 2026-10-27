@@ -1,0 +1,26 @@
+services:
+  api:
+    image: ${api_image}
+    restart: unless-stopped
+    env_file:
+      - /opt/aws-pratice/api.env
+    environment:
+      AWS_REGION: "${aws_region}"
+      S3_BUCKET: "${s3_bucket}"
+    networks:
+      - internal
+
+  frontend:
+    image: ${frontend_image}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - api
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge

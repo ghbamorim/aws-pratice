@@ -1,0 +1,37 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ManageGitHubOidcProvider",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateOpenIDConnectProvider",
+        "iam:DeleteOpenIDConnectProvider",
+        "iam:TagOpenIDConnectProvider",
+        "iam:UntagOpenIDConnectProvider",
+        "iam:UpdateOpenIDConnectProviderThumbprint",
+        "iam:AddClientIDToOpenIDConnectProvider",
+        "iam:RemoveClientIDFromOpenIDConnectProvider"
+      ],
+      "Resource": "arn:aws:iam::242627333067:oidc-provider/token.actions.githubusercontent.com"
+    },
+    {
+      "Sid": "ManageGitHubActionsRole",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:TagRole",
+        "iam:UntagRole"
+      ],
+      "Resource": "arn:aws:iam::242627333067:role/aws-pratice-github-actions-deploy"
+    },
+    {
+      "Sid": "ManageGitHubActionsRolePolicy",
+      "Effect": "Allow",
+      "Action": ["iam:PutRolePolicy", "iam:DeleteRolePolicy"],
+      "Resource": "arn:aws:iam::242627333067:role/aws-pratice-github-actions-deploy"
+    }
+  ]
+}

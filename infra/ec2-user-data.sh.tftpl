@@ -1,0 +1,106 @@
+#!/bin/bash
+set -euo pipefail
+
+dnf update -y
+dnf install -y docker
+
+systemctl enable --now docker
+
+mkdir -p /usr/local/lib/docker/cli-plugins
+
+curl -fsSL \
+  https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-x86_64 \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+mkdir -p /opt/aws-pratice
+chmod 755 /opt/aws-pratice
+
+echo '${docker_compose}' | base64 -d > /opt/aws-pratice/docker-compose.yml
+
+cat > /usr/local/bin/aws-pratice-start <<'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+
+REGION="${aws_region}"
+REGISTRY="${ecr_registry}"
+
+cd /opt/aws-pratice
+
+# Read database credentials from AWS Secrets Manager.
+SECRET_JSON=$(aws secretsmanager get-secret-value \
+  --region "$REGION" \
+  --secret-id "${db_secret_arn}" \
+  --query SecretString \
+  --output text)
+
+# Construct the connection URL with correctly escaped credentials.
+export SECRET_JSON
+python3 - <<'PY' > /opt/aws-pratice/api.env
+import json
+import os
+from urllib.parse import quote
+
+secret = json.loads(os.environ["SECRET_JSON"])
+
+username = quote(secret["username"], safe="")
+password = quote(secret["password"], safe="")
+
+host = "${db_host}"
+port = "${db_port}"
+database = "${db_name}"
+
+url = (
+    f"postgresql+psycopg://{username}:{password}"
+    f"@{host}:{port}/{database}"
+)
+
+print(f"DATABASE_URL={url}")
+PY
+
+unset SECRET_JSON
+chmod 600 /opt/aws-pratice/api.env
+
+# Retry authentication and image downloads until both images are available.
+while true; do
+  if aws ecr get-login-password \
+    --region "$REGION" \
+    | docker login --username AWS --password-stdin "$REGISTRY"; then
+
+    if docker compose pull && docker compose up -d --remove-orphans; then
+      echo "Application containers started successfully."
+      exit 0
+    fi
+  fi
+
+  echo "Application images are not ready. Retrying in 60 seconds."
+  sleep 60
+done
+SCRIPT
+
+chmod +x /usr/local/bin/aws-pratice-start
+
+cat > /etc/systemd/system/aws-pratice.service <<'SERVICE'
+[Unit]
+Description=AWS Pratice Docker Compose
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/aws-pratice-start
+ExecStop=/usr/bin/docker compose -f /opt/aws-pratice/docker-compose.yml down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+
+systemctl daemon-reload
+systemctl enable aws-pratice.service
+
+# Start asynchronously so cloud-init can finish.
+systemctl start --no-block aws-pratice.service
