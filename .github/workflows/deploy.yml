@@ -31,8 +31,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ ! "$RELEASE_TAG" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$ ]]; then
-            echo "Invalid Docker image tag: $RELEASE_TAG"
+          if [[ ! "$RELEASE_TAG" =~ ^v[a-zA-Z0-9_.-]{1,126}$ ]]; then
+            echo "Release tag must begin with v and be Docker-compatible."
             exit 1
           fi
 
@@ -43,31 +43,6 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name }}
           persist-credentials: false
-
-      - name: Inspect OIDC token claims
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          TOKEN_RESPONSE=$(curl -fsSL \
-            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
-
-          TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.value')
-          PAYLOAD=$(echo "$TOKEN" | cut -d '.' -f 2)
-
-          # Decode the JWT payload without printing the token.
-          PAYLOAD=$(printf '%s' "$PAYLOAD" | tr '_-' '/+')
-          PAYLOAD="${PAYLOAD}$(printf '%*s' $(( (4 - ${#PAYLOAD} % 4) % 4 )) '' | tr ' ' '=')"
-
-          echo "$PAYLOAD" | base64 -d | jq '{
-            sub,
-            aud,
-            repository,
-            ref,
-            event_name,
-            workflow_ref
-          }'
 
       - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -106,9 +81,7 @@ jobs:
           REGISTRY: ${{ steps.ecr-login.outputs.registry }}
         run: |
           set -euo pipefail
-
           IMAGE="$REGISTRY/$API_REPOSITORY:$IMAGE_TAG"
-
           docker build -t "$IMAGE" ./backend
           docker push "$IMAGE"
 
@@ -117,19 +90,14 @@ jobs:
           REGISTRY: ${{ steps.ecr-login.outputs.registry }}
         run: |
           set -euo pipefail
-
           IMAGE="$REGISTRY/$FRONTEND_REPOSITORY:$IMAGE_TAG"
-
           docker build -t "$IMAGE" ./frontend
           docker push "$IMAGE"
 
       - name: Deploy release to EC2 using SSM
-        env:
-          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
         run: |
           set -euo pipefail
 
-          # Generate a shell script executed by SSM on the EC2 instance.
           cat > deploy-ec2.sh <<'SCRIPT'
           #!/bin/bash
           set -euo pipefail
@@ -148,10 +116,10 @@ jobs:
           KEY_FILE="/opt/aws-pratice/letsencrypt/live/$DOMAIN/privkey.pem"
           NGINX_CONF="/opt/aws-pratice/nginx/default.conf"
 
-          # Stop the existing startup service before changing images.
+          # Stop startup supervision while deploying.
           systemctl stop aws-pratice.service
 
-          # Persist the release images in the existing Compose file.
+          # Update the application image versions.
           sed -i -E \
             "s|image: $REGISTRY/aws-pratice-api:[^[:space:]]+|image: $API_IMAGE|" \
             docker-compose.yml
@@ -160,7 +128,6 @@ jobs:
             "s|image: $REGISTRY/aws-pratice-frontend:[^[:space:]]+|image: $FRONTEND_IMAGE|" \
             docker-compose.yml
 
-          # Authenticate to ECR and download the release images.
           aws ecr get-login-password --region "$REGION" \
             | docker login \
                 --username AWS \
@@ -169,7 +136,11 @@ jobs:
           docker compose pull
           docker compose up -d --remove-orphans
 
-          # Wait for both application services to become available.
+          # Restore supervision and wait for it to complete.
+          systemctl reset-failed aws-pratice.service || true
+          systemctl start aws-pratice.service
+
+          # Wait for both containers to be running.
           SERVICES_READY=false
 
           for attempt in $(seq 1 30); do
@@ -181,7 +152,7 @@ jobs:
               break
             fi
 
-            echo "Waiting for application services (attempt $attempt/30)..."
+            echo "Waiting for application services ($attempt/30)..."
             sleep 5
           done
 
@@ -192,55 +163,73 @@ jobs:
             exit 1
           fi
 
-          # Activate HTTPS after deployment when TLS is configured.
+          # Verify HTTP before checking TLS.
+          HTTP_READY=false
+
+          for attempt in $(seq 1 15); do
+            if curl --fail --silent --show-error \
+                --max-time 5 \
+                --output /dev/null \
+                http://127.0.0.1/; then
+              HTTP_READY=true
+              break
+            fi
+
+            sleep 2
+          done
+
+          if [ "$HTTP_READY" != true ]; then
+            echo "HTTP validation failed."
+            docker compose logs --tail 100 frontend
+            exit 1
+          fi
+
+          echo "HTTP is responding successfully."
+
+          # Activate TLS only when certificates and configuration exist.
           if [ -s "$CERT_FILE" ] \
             && [ -s "$KEY_FILE" ] \
             && [ -f "$NGINX_CONF" ]; then
 
-            echo "Activating HTTPS after deployment..."
+            echo "Validating and activating HTTPS..."
 
             docker compose exec -T frontend nginx -t
             docker compose exec -T frontend nginx -s reload
 
             HTTPS_READY=false
 
-            for attempt in $(seq 1 10); do
-              if docker compose exec -T frontend wget \
-                  --no-check-certificate \
-                  -q \
-                  -O /dev/null \
+            for attempt in $(seq 1 15); do
+              if curl --fail --silent --show-error \
+                  --insecure \
+                  --max-time 5 \
+                  --output /dev/null \
                   https://127.0.0.1/; then
                 HTTPS_READY=true
                 break
               fi
 
-              echo "Waiting for HTTPS (attempt $attempt/10)..."
+              echo "Waiting for HTTPS ($attempt/15)..."
               sleep 2
             done
 
             if [ "$HTTPS_READY" != true ]; then
-              echo "HTTPS validation failed after deployment."
+              echo "HTTPS validation failed."
               docker compose logs --tail 100 frontend
               exit 1
             fi
 
             echo "HTTPS is responding successfully."
           else
-            echo "TLS certificate is not available yet."
-            echo "HTTPS initialization remains managed by SSM."
+            echo "TLS is not configured yet."
+            echo "HTTPS initialization is managed by the SSM association."
           fi
 
-          # Restore systemd supervision for subsequent reboots.
-          systemctl reset-failed aws-pratice.service || true
-          systemctl start --no-block aws-pratice.service
-
-          echo "Release $TAG deployed successfully."
           docker compose ps
+          echo "Release $TAG deployed successfully."
           SCRIPT
 
           sed -i "s|__IMAGE_TAG__|$IMAGE_TAG|g" deploy-ec2.sh
 
-          # Encode the script to avoid shell and JSON escaping issues.
           SCRIPT_BASE64=$(base64 -w 0 deploy-ec2.sh)
 
           PARAMETERS=$(jq -nc \
@@ -258,7 +247,6 @@ jobs:
 
           echo "SSM Command ID: $COMMAND_ID"
 
-          # Wait for the remote deployment to finish.
           for attempt in $(seq 1 120); do
             STATUS=$(aws ssm get-command-invocation \
               --region "$AWS_REGION" \
