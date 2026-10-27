@@ -11,15 +11,19 @@ NGINX_CONF="$NGINX_DIR/default.conf"
 CERT_FILE="$CERT_DIR/live/$DOMAIN/fullchain.pem"
 KEY_FILE="$CERT_DIR/live/$DOMAIN/privkey.pem"
 
-# Wait for the EC2 initialization and application deployment.
+# Wait for EC2 initialization and application deployment.
 echo "Waiting for application initialization..."
 
 for attempt in $(seq 1 60); do
     if [ -f "$APP_DIR/docker-compose.yml" ] \
         && [ -f "$APP_DIR/api.env" ] \
+        && command -v docker >/dev/null 2>&1 \
         && docker info >/dev/null 2>&1 \
-        && docker compose -f "$APP_DIR/docker-compose.yml" ps --status running --services 2>/dev/null | grep -qx frontend \
-        && docker compose -f "$APP_DIR/docker-compose.yml" ps --status running --services 2>/dev/null | grep -qx api; then
+        && docker compose version >/dev/null 2>&1 \
+        && docker compose -f "$APP_DIR/docker-compose.yml" ps \
+            --status running --services 2>/dev/null | grep -qx frontend \
+        && docker compose -f "$APP_DIR/docker-compose.yml" ps \
+            --status running --services 2>/dev/null | grep -qx api; then
         break
     fi
 
@@ -33,35 +37,6 @@ done
 
 cd "$APP_DIR"
 
-# Wait for Docker and the application to become available.
-if ! command -v docker >/dev/null 2>&1; then
-    echo "Docker is not installed yet."
-    exit 1
-fi
-
-if ! docker info >/dev/null 2>&1; then
-    echo "Docker is not ready yet."
-    exit 1
-fi
-
-if ! docker compose version >/dev/null 2>&1; then
-    echo "Docker Compose is not ready yet."
-    exit 1
-fi
-
-if [ ! -f docker-compose.yml ] || [ ! -f api.env ]; then
-    echo "Application initialization is incomplete."
-    exit 1
-fi
-
-RUNNING=$(docker compose ps --status running --services)
-
-if ! echo "$RUNNING" | grep -qx api \
-   || ! echo "$RUNNING" | grep -qx frontend; then
-    echo "Application containers are not running yet."
-    exit 1
-fi
-
 mkdir -p "$CERT_DIR" "$WEBROOT" "$NGINX_DIR"
 
 # Mount the Nginx configuration and certificate directories.
@@ -74,7 +49,7 @@ services:
       - /opt/aws-pratice/acme-webroot:/var/www/certbot:ro
 YAML
 
-# Include the HTTPS override in all subsequent Compose operations.
+# Include the HTTPS override in subsequent Compose operations.
 cat > .env <<'ENV'
 COMPOSE_FILE=docker-compose.yml:docker-compose.https.yml
 ENV
@@ -111,7 +86,7 @@ NGINX
     # Start the frontend with the HTTP challenge configuration.
     docker compose up -d --no-deps --force-recreate frontend
 
-    # Request the certificate through the existing Nginx webroot.
+    # Request the certificate through the Nginx webroot.
     docker run --rm \
       -v "$CERT_DIR:/etc/letsencrypt" \
       -v "$WEBROOT:/var/www/certbot" \
@@ -176,24 +151,41 @@ server {
 }
 NGINX
 
-# Validate the configuration before replacing the running frontend.
+# Validate the HTTPS configuration before replacing the frontend.
 docker compose run --rm --no-deps frontend nginx -t
 
-# Recreate the frontend so the HTTPS configuration is activated.
+# Recreate the frontend with the HTTPS volumes.
 docker compose up -d --no-deps --force-recreate frontend
 
-# Verify that the running Nginx accepts its configuration.
+# Validate the configuration inside the running container.
 docker compose exec -T frontend nginx -t
 
-# Reload the running Nginx to activate the HTTPS listener.
+# Explicitly reload Nginx to activate the HTTPS listener.
 docker compose exec -T frontend nginx -s reload
 
-# Verify that HTTPS is responding locally.
-docker compose exec -T frontend wget \
-  --no-check-certificate \
-  -q \
-  -O /dev/null \
-  "https://127.0.0.1/"
+# Verify HTTPS availability before reporting success.
+HTTPS_READY=false
+
+for attempt in $(seq 1 10); do
+    if docker compose exec -T frontend wget \
+        --no-check-certificate \
+        -q \
+        -O /dev/null \
+        "https://127.0.0.1/"; then
+        HTTPS_READY=true
+        break
+    fi
+
+    echo "Waiting for HTTPS listener (attempt $attempt/10)..."
+    sleep 2
+done
+
+if [ "$HTTPS_READY" != true ]; then
+    echo "HTTPS failed to become available."
+    exit 1
+fi
+
+echo "HTTPS is responding successfully."
 
 # Install the automatic certificate renewal script.
 cat > /usr/local/bin/aws-pratice-renew-cert <<'SCRIPT'

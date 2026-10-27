@@ -18,7 +18,6 @@ env:
   AWS_ACCOUNT_ID: "242627333067"
   API_REPOSITORY: aws-pratice-api
   FRONTEND_REPOSITORY: aws-pratice-frontend
-  INSTANCE_ID: i-0465d056f6a07fb69
 
 jobs:
   deploy:
@@ -76,6 +75,28 @@ jobs:
           role-to-assume: arn:aws:iam::242627333067:role/aws-pratice-github-actions-deploy
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Discover EC2 instance
+        run: |
+          set -euo pipefail
+
+          INSTANCE_IDS=$(aws ec2 describe-instances \
+            --region "$AWS_REGION" \
+            --filters \
+              "Name=instance-state-name,Values=running" \
+              "Name=tag:Name,Values=aws-pratice" \
+            --query 'Reservations[].Instances[].InstanceId' \
+            --output text)
+
+          read -r -a IDS <<< "$INSTANCE_IDS"
+
+          if [ "${#IDS[@]}" -ne 1 ]; then
+            echo "Expected exactly one running EC2 instance; found ${#IDS[@]}."
+            exit 1
+          fi
+
+          echo "INSTANCE_ID=${IDS[0]}" >> "$GITHUB_ENV"
+          echo "Deploy target: ${IDS[0]}"
+
       - name: Login to Amazon ECR
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
@@ -122,6 +143,11 @@ jobs:
           API_IMAGE="$REGISTRY/aws-pratice-api:$TAG"
           FRONTEND_IMAGE="$REGISTRY/aws-pratice-frontend:$TAG"
 
+          DOMAIN="aws-lab-ghbamorim.duckdns.org"
+          CERT_FILE="/opt/aws-pratice/letsencrypt/live/$DOMAIN/fullchain.pem"
+          KEY_FILE="/opt/aws-pratice/letsencrypt/live/$DOMAIN/privkey.pem"
+          NGINX_CONF="/opt/aws-pratice/nginx/default.conf"
+
           # Stop the existing startup service before changing images.
           systemctl stop aws-pratice.service
 
@@ -143,28 +169,73 @@ jobs:
           docker compose pull
           docker compose up -d --remove-orphans
 
-          # Verify that both services are running.
+          # Wait for both application services to become available.
+          SERVICES_READY=false
+
           for attempt in $(seq 1 30); do
             RUNNING=$(docker compose ps --status running --services)
 
             if echo "$RUNNING" | grep -qx api \
               && echo "$RUNNING" | grep -qx frontend; then
-
-              # Restore systemd supervision for subsequent reboots.
-              systemctl reset-failed aws-pratice.service || true
-              systemctl start --no-block aws-pratice.service
-
-              echo "Release $TAG deployed successfully."
-              docker compose ps
-              exit 0
+              SERVICES_READY=true
+              break
             fi
 
+            echo "Waiting for application services (attempt $attempt/30)..."
             sleep 5
           done
 
+          if [ "$SERVICES_READY" != true ]; then
+            echo "Application containers failed to start."
+            docker compose ps
+            docker compose logs --tail 100
+            exit 1
+          fi
+
+          # Activate HTTPS after deployment when TLS is configured.
+          if [ -s "$CERT_FILE" ] \
+            && [ -s "$KEY_FILE" ] \
+            && [ -f "$NGINX_CONF" ]; then
+
+            echo "Activating HTTPS after deployment..."
+
+            docker compose exec -T frontend nginx -t
+            docker compose exec -T frontend nginx -s reload
+
+            HTTPS_READY=false
+
+            for attempt in $(seq 1 10); do
+              if docker compose exec -T frontend wget \
+                  --no-check-certificate \
+                  -q \
+                  -O /dev/null \
+                  https://127.0.0.1/; then
+                HTTPS_READY=true
+                break
+              fi
+
+              echo "Waiting for HTTPS (attempt $attempt/10)..."
+              sleep 2
+            done
+
+            if [ "$HTTPS_READY" != true ]; then
+              echo "HTTPS validation failed after deployment."
+              docker compose logs --tail 100 frontend
+              exit 1
+            fi
+
+            echo "HTTPS is responding successfully."
+          else
+            echo "TLS certificate is not available yet."
+            echo "HTTPS initialization remains managed by SSM."
+          fi
+
+          # Restore systemd supervision for subsequent reboots.
+          systemctl reset-failed aws-pratice.service || true
+          systemctl start --no-block aws-pratice.service
+
+          echo "Release $TAG deployed successfully."
           docker compose ps
-          docker compose logs --tail 100
-          exit 1
           SCRIPT
 
           sed -i "s|__IMAGE_TAG__|$IMAGE_TAG|g" deploy-ec2.sh
