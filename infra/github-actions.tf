@@ -25,7 +25,7 @@ resource "aws_iam_role" "github_actions_deploy" {
         }
 
         StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:ghbamorim/aws-pratice:ref:refs/tags/v*"
+          "token.actions.githubusercontent.com:sub" = "repo:ghbamorim@79848031/aws-pratice@1427495511:ref:refs/tags/v*"
         }
       }
     }]
