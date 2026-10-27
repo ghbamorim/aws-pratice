@@ -23,7 +23,7 @@ resource "aws_ssm_document" "https_setup" {
           timeoutSeconds = "900"
 
           runCommand = [
-            "echo '${base64encode(file("${path.module}/https-setup.sh"))}' | base64 -d | bash"
+            "echo '${base64encode(replace(file("${path.module}/https-setup.sh"), "\r\n", "\n"))}' | base64 -d | bash"
           ]
         }
       }

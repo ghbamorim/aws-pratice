@@ -7,48 +7,44 @@ APP_DIR="/opt/aws-pratice"
 CERT_DIR="$APP_DIR/letsencrypt"
 WEBROOT="$APP_DIR/acme-webroot"
 NGINX_DIR="$APP_DIR/nginx"
+NGINX_CONF="$NGINX_DIR/default.conf"
 CERT_FILE="$CERT_DIR/live/$DOMAIN/fullchain.pem"
+KEY_FILE="$CERT_DIR/live/$DOMAIN/privkey.pem"
 
-# Wait for EC2 initialization.
+cd "$APP_DIR"
+
+# Wait for Docker and the application to become available.
 if ! command -v docker >/dev/null 2>&1; then
     echo "Docker is not installed yet."
-    exit 0
+    exit 1
 fi
 
 if ! docker info >/dev/null 2>&1; then
     echo "Docker is not ready yet."
-    exit 0
+    exit 1
 fi
 
 if ! docker compose version >/dev/null 2>&1; then
     echo "Docker Compose is not ready yet."
-    exit 0
+    exit 1
 fi
 
-if [ ! -f "$APP_DIR/docker-compose.yml" ]; then
-    echo "Application Compose file is not ready yet."
-    exit 0
+if [ ! -f docker-compose.yml ] || [ ! -f api.env ]; then
+    echo "Application initialization is incomplete."
+    exit 1
 fi
 
-if [ ! -f "$APP_DIR/api.env" ]; then
-    echo "Application environment is not ready yet."
-    exit 0
-fi
-
-cd "$APP_DIR"
-
-# Wait for the GitHub release to deploy both containers.
 RUNNING=$(docker compose ps --status running --services)
 
 if ! echo "$RUNNING" | grep -qx api \
    || ! echo "$RUNNING" | grep -qx frontend; then
-    echo "Application release is not running yet."
-    exit 0
+    echo "Application containers are not running yet."
+    exit 1
 fi
 
 mkdir -p "$CERT_DIR" "$WEBROOT" "$NGINX_DIR"
 
-# Add HTTPS mounts without changing release image tags.
+# Mount the Nginx configuration and certificate directories.
 cat > docker-compose.https.yml <<'YAML'
 services:
   frontend:
@@ -58,14 +54,14 @@ services:
       - /opt/aws-pratice/acme-webroot:/var/www/certbot:ro
 YAML
 
-# Apply the HTTPS override to subsequent Compose commands.
+# Include the HTTPS override in all subsequent Compose operations.
 cat > .env <<'ENV'
 COMPOSE_FILE=docker-compose.yml:docker-compose.https.yml
 ENV
 
-# Use HTTP for the initial certificate challenge only.
-if [ ! -s "$CERT_FILE" ]; then
-    cat > "$NGINX_DIR/default.conf" <<'NGINX'
+# Obtain the initial certificate only when it does not exist.
+if [ ! -s "$CERT_FILE" ] || [ ! -s "$KEY_FILE" ]; then
+    cat > "$NGINX_CONF" <<'NGINX'
 server {
     listen 80;
     server_name aws-lab-ghbamorim.duckdns.org;
@@ -92,8 +88,10 @@ server {
 }
 NGINX
 
+    # Start the frontend with the HTTP challenge configuration.
     docker compose up -d --no-deps --force-recreate frontend
 
+    # Request the certificate through the existing Nginx webroot.
     docker run --rm \
       -v "$CERT_DIR:/etc/letsencrypt" \
       -v "$WEBROOT:/var/www/certbot" \
@@ -106,8 +104,14 @@ NGINX
       --non-interactive
 fi
 
-# Configure HTTPS and preserve the ACME challenge endpoint.
-cat > "$NGINX_DIR/default.conf" <<'NGINX'
+# Never activate HTTPS without both certificate files.
+if [ ! -s "$CERT_FILE" ] || [ ! -s "$KEY_FILE" ]; then
+    echo "TLS certificate files are missing."
+    exit 1
+fi
+
+# Configure the final Nginx HTTPS virtual host.
+cat > "$NGINX_CONF" <<'NGINX'
 server {
     listen 80;
     server_name aws-lab-ghbamorim.duckdns.org;
@@ -152,12 +156,26 @@ server {
 }
 NGINX
 
-# Validate and activate the Nginx HTTPS configuration.
+# Validate the configuration before replacing the running frontend.
 docker compose run --rm --no-deps frontend nginx -t
-docker compose up -d --no-deps frontend
+
+# Recreate the frontend so the HTTPS configuration is activated.
+docker compose up -d --no-deps --force-recreate frontend
+
+# Verify that the running Nginx accepts its configuration.
+docker compose exec -T frontend nginx -t
+
+# Reload the running Nginx to activate the HTTPS listener.
 docker compose exec -T frontend nginx -s reload
 
-# Install automatic certificate renewal.
+# Verify that HTTPS is responding locally.
+docker compose exec -T frontend wget \
+  --no-check-certificate \
+  -q \
+  -O /dev/null \
+  "https://127.0.0.1/"
+
+# Install the automatic certificate renewal script.
 cat > /usr/local/bin/aws-pratice-renew-cert <<'SCRIPT'
 #!/bin/bash
 set -euo pipefail
@@ -203,4 +221,4 @@ TIMER
 systemctl daemon-reload
 systemctl enable --now aws-pratice-cert-renew.timer
 
-echo "HTTPS configured for $DOMAIN"
+echo "HTTPS configured successfully for $DOMAIN"
