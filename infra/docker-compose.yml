@@ -13,30 +13,14 @@ services:
   frontend:
     image: ${frontend_image}
     restart: unless-stopped
-    depends_on:
-      - api
-    networks:
-      - internal
-
-  caddy:
-    image: caddy:2
-    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
-    volumes:
-      - /opt/aws-pratice/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
     depends_on:
-      - frontend
+      - api
     networks:
       - internal
 
 networks:
   internal:
     driver: bridge
-
-volumes:
-  caddy_data:
-  caddy_config:

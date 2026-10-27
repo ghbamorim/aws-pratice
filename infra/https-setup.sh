@@ -7,30 +7,65 @@ APP_DIR="/opt/aws-pratice"
 CERT_DIR="$APP_DIR/letsencrypt"
 WEBROOT="$APP_DIR/acme-webroot"
 NGINX_DIR="$APP_DIR/nginx"
+CERT_FILE="$CERT_DIR/live/$DOMAIN/fullchain.pem"
 
-mkdir -p "$CERT_DIR" "$WEBROOT" "$NGINX_DIR"
+# Wait for EC2 initialization.
+if ! command -v docker >/dev/null 2>&1; then
+    echo "Docker is not installed yet."
+    exit 0
+fi
+
+if ! docker info >/dev/null 2>&1; then
+    echo "Docker is not ready yet."
+    exit 0
+fi
+
+if ! docker compose version >/dev/null 2>&1; then
+    echo "Docker Compose is not ready yet."
+    exit 0
+fi
+
+if [ ! -f "$APP_DIR/docker-compose.yml" ]; then
+    echo "Application Compose file is not ready yet."
+    exit 0
+fi
+
+if [ ! -f "$APP_DIR/api.env" ]; then
+    echo "Application environment is not ready yet."
+    exit 0
+fi
+
 cd "$APP_DIR"
 
-# Preserve the existing Compose application and release image tags.
+# Wait for the GitHub release to deploy both containers.
+RUNNING=$(docker compose ps --status running --services)
+
+if ! echo "$RUNNING" | grep -qx api \
+   || ! echo "$RUNNING" | grep -qx frontend; then
+    echo "Application release is not running yet."
+    exit 0
+fi
+
+mkdir -p "$CERT_DIR" "$WEBROOT" "$NGINX_DIR"
+
+# Add HTTPS mounts without changing release image tags.
 cat > docker-compose.https.yml <<'YAML'
 services:
   frontend:
-    ports:
-      - "80:80"
-      - "443:443"
     volumes:
       - /opt/aws-pratice/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - /opt/aws-pratice/letsencrypt:/etc/letsencrypt:ro
       - /opt/aws-pratice/acme-webroot:/var/www/certbot:ro
 YAML
 
-# Make every Docker Compose invocation use the HTTPS override.
+# Apply the HTTPS override to subsequent Compose commands.
 cat > .env <<'ENV'
 COMPOSE_FILE=docker-compose.yml:docker-compose.https.yml
 ENV
 
-# Bootstrap HTTP configuration for certificate issuance.
-cat > "$NGINX_DIR/default.conf" <<'NGINX'
+# Use HTTP for the initial certificate challenge only.
+if [ ! -s "$CERT_FILE" ]; then
+    cat > "$NGINX_DIR/default.conf" <<'NGINX'
 server {
     listen 80;
     server_name aws-lab-ghbamorim.duckdns.org;
@@ -57,11 +92,8 @@ server {
 }
 NGINX
 
-# Recreate the frontend with the mounted HTTP configuration.
-docker compose up -d --no-deps --force-recreate frontend
+    docker compose up -d --no-deps --force-recreate frontend
 
-# Obtain the first certificate without interactive prompts.
-if [ ! -f "$CERT_DIR/live/$DOMAIN/fullchain.pem" ]; then
     docker run --rm \
       -v "$CERT_DIR:/etc/letsencrypt" \
       -v "$WEBROOT:/var/www/certbot" \
@@ -74,7 +106,7 @@ if [ ! -f "$CERT_DIR/live/$DOMAIN/fullchain.pem" ]; then
       --non-interactive
 fi
 
-# Activate HTTPS and redirect HTTP traffic.
+# Configure HTTPS and preserve the ACME challenge endpoint.
 cat > "$NGINX_DIR/default.conf" <<'NGINX'
 server {
     listen 80;
@@ -120,11 +152,12 @@ server {
 }
 NGINX
 
-# Validate the HTTPS configuration before activating it.
+# Validate and activate the Nginx HTTPS configuration.
 docker compose run --rm --no-deps frontend nginx -t
-docker compose up -d --no-deps --force-recreate frontend
+docker compose up -d --no-deps frontend
+docker compose exec -T frontend nginx -s reload
 
-# Create a renewal script.
+# Install automatic certificate renewal.
 cat > /usr/local/bin/aws-pratice-renew-cert <<'SCRIPT'
 #!/bin/bash
 set -euo pipefail

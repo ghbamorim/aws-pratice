@@ -18,7 +18,7 @@ env:
   AWS_ACCOUNT_ID: "242627333067"
   API_REPOSITORY: aws-pratice-api
   FRONTEND_REPOSITORY: aws-pratice-frontend
-  INSTANCE_ID: i-0578e7f52022b6469
+  INSTANCE_ID: i-08db702937e25e246
 
 jobs:
   deploy:

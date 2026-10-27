@@ -1,6 +1,6 @@
 
 resource "aws_ssm_document" "https_setup" {
-  name            = "aws-pratice-https-setup"
+  name            = "pratice-https-setup"
   document_type   = "Command"
   document_format = "JSON"
 
@@ -32,8 +32,9 @@ resource "aws_ssm_document" "https_setup" {
 }
 
 resource "aws_ssm_association" "https_setup" {
-  name             = aws_ssm_document.https_setup.name
-  association_name = "aws-pratice-https-setup"
+  name                = aws_ssm_document.https_setup.name
+  association_name    = "pratice-https-setup"
+  schedule_expression = "rate(30 minutes)"
 
   targets {
     key    = "InstanceIds"
