@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
@@ -10,7 +9,6 @@ DB_USER="postgres"
 API_REPOSITORY="aws-pratice-api"
 FRONTEND_REPOSITORY="aws-pratice-frontend"
 
-DOMAIN="aws-lab-ghbamorim.duckdns.org"
 COMPOSE_FILE="/opt/aws-pratice/compose.prod.yaml"
 
 IMAGE_TAG="${1:?Uso: deploy.sh IMAGE_TAG}"
@@ -120,7 +118,6 @@ SECRET_JSON="$(
 [[ -n "$SECRET_JSON" && "$SECRET_JSON" != "None" ]] ||
     fail "Credenciais do RDS não encontradas"
 
-# Codifica usuário e senha para uso seguro em uma URL PostgreSQL.
 DATABASE_URL="$(
     SECRET_JSON="$SECRET_JSON" \
     DB_ENDPOINT="$DB_ENDPOINT" \
@@ -211,22 +208,21 @@ check_api() {
 retry 30 10 check_api ||
     fail "API não ficou saudável"
 
-log "Aguardando certificado HTTPS..."
+log "Aguardando frontend HTTP..."
 
-check_https() {
+check_frontend() {
     curl \
         --fail \
         --silent \
         --show-error \
         --connect-timeout 5 \
         --max-time 15 \
-        --resolve "${DOMAIN}:443:127.0.0.1" \
-        "https://${DOMAIN}/" \
+        "http://127.0.0.1/" \
         -o /dev/null
 }
 
-retry 30 10 check_https ||
-    fail "HTTPS não ficou disponível"
+retry 30 10 check_frontend ||
+    fail "Frontend não ficou disponível"
 
 log "Verificando estado dos contêineres..."
 
@@ -235,4 +231,3 @@ docker compose \
     ps
 
 log "Deploy concluído com sucesso."
-log "Aplicação: https://${DOMAIN}"

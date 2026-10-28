@@ -114,6 +114,17 @@ resource "aws_iam_role_policy" "github_actions" {
         ]
 
         Resource = "*"
+      },
+      {
+        Sid    = "ReadCloudFront"
+        Effect = "Allow"
+
+        Action = [
+          "cloudfront:ListDistributions",
+          "cloudfront:GetDistribution"
+        ]
+
+        Resource = "*"
       }
     ]
   })

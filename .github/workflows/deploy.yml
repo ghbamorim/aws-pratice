@@ -19,7 +19,6 @@ jobs:
 
     env:
       AWS_REGION: us-east-2
-      DOMAIN: aws-lab-ghbamorim.duckdns.org
 
     steps:
       - name: Checkout
@@ -31,7 +30,7 @@ jobs:
           role-to-assume: arn:aws:iam::242627333067:role/aws-pratice-github-actions-deploy
           aws-region: us-east-2
 
-      - name: Discover EC2 and ECR
+      - name: Discover EC2, ECR and CloudFront
         shell: bash
         run: |
           set -euo pipefail
@@ -50,9 +49,22 @@ jobs:
           test "$INSTANCE_ID" != "None"
           test "$(wc -w <<< "$INSTANCE_ID")" -eq 1
 
+          DISTRIBUTION_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Comment=='AWS Practice - React e API'].Id | [0]" \
+            --output text)
+
+          test -n "$DISTRIBUTION_ID"
+          test "$DISTRIBUTION_ID" != "None"
+
+          CLOUDFRONT_DOMAIN=$(aws cloudfront get-distribution \
+            --id "$DISTRIBUTION_ID" \
+            --query 'Distribution.DomainName' \
+            --output text)
+
           echo "INSTANCE_ID=$INSTANCE_ID" >> "$GITHUB_ENV"
           echo "ECR_REGISTRY=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com" >> "$GITHUB_ENV"
           echo "IMAGE_TAG=$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "CLOUDFRONT_DOMAIN=$CLOUDFRONT_DOMAIN" >> "$GITHUB_ENV"
 
       - name: Wait for EC2 and SSM
         shell: bash
@@ -212,10 +224,10 @@ jobs:
               --show-error \
               --connect-timeout 5 \
               --max-time 15 \
-              "https://${DOMAIN}/" \
+              "https://${CLOUDFRONT_DOMAIN}/" \
               -o /dev/null; then
 
-              echo "HTTPS funcionando: https://${DOMAIN}/"
+              echo "HTTPS funcionando: https://${CLOUDFRONT_DOMAIN}/"
               exit 0
             fi
 
