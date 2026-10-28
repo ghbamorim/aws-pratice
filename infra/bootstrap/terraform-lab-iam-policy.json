@@ -1,0 +1,121 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadIAM",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies",
+        "iam:GetRolePolicy",
+        "iam:GetInstanceProfile",
+        "iam:ListInstanceProfilesForRole",
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion",
+        "iam:ListPolicyVersions",
+        "iam:ListRoleTags"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ManageEC2Role",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::242627333067:role/aws-pratice-ec2-role"
+    },
+    {
+      "Sid": "ManageInstanceProfile",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateInstanceProfile",
+        "iam:DeleteInstanceProfile",
+        "iam:AddRoleToInstanceProfile",
+        "iam:RemoveRoleFromInstanceProfile",
+        "iam:TagInstanceProfile",
+        "iam:UntagInstanceProfile"
+      ],
+      "Resource": "arn:aws:iam::242627333067:instance-profile/aws-pratice-ec2-profile"
+    },
+    {
+      "Sid": "PassEC2Role",
+      "Effect": "Allow",
+      "Action": ["iam:PassRole"],
+      "Resource": "arn:aws:iam::242627333067:role/aws-pratice-ec2-role",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "ec2.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Action": [
+        "iam:CreatePolicy",
+        "iam:DeletePolicy",
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion",
+        "iam:ListPolicyVersions",
+        "iam:CreatePolicyVersion",
+        "iam:DeletePolicyVersion",
+        "iam:ListEntitiesForPolicy"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::242627333067:policy/aws-pratice-ec2-app-access",
+      "Sid": "ManageEc2AppPolicy"
+    },
+    {
+      "Action": ["iam:AttachRolePolicy", "iam:DetachRolePolicy"],
+      "Condition": {
+        "ArnEquals": {
+          "iam:PolicyARN": "arn:aws:iam::242627333067:policy/aws-pratice-ec2-app-access"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::242627333067:role/aws-pratice-ec2-role",
+      "Sid": "AttachEc2AppPolicy"
+    },
+    {
+      "Action": [
+        "iam:CreateOpenIDConnectProvider",
+        "iam:GetOpenIDConnectProvider",
+        "iam:DeleteOpenIDConnectProvider",
+        "iam:TagOpenIDConnectProvider",
+        "iam:UntagOpenIDConnectProvider",
+        "iam:UpdateOpenIDConnectProviderThumbprint",
+        "iam:AddClientIDToOpenIDConnectProvider",
+        "iam:RemoveClientIDFromOpenIDConnectProvider"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::242627333067:oidc-provider/token.actions.githubusercontent.com",
+      "Sid": "ManageGitHubOidcProvider"
+    },
+    {
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:TagRole",
+        "iam:UntagRole"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::242627333067:role/aws-pratice-github-actions-deploy",
+      "Sid": "ManageGitHubActionsRole"
+    },
+    {
+      "Action": ["iam:PutRolePolicy", "iam:DeleteRolePolicy"],
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::242627333067:role/aws-pratice-github-actions-deploy",
+      "Sid": "ManageGitHubActionsRolePolicy"
+    }
+  ]
+}

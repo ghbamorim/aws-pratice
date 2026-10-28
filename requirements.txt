@@ -14,7 +14,7 @@
 7. Frontend React servido pelo Nginx dentro do container.
 8. Backend FastAPI em container separado.
 9. Nginx encaminhando `/api` para o backend.
-10. Acesso exclusivamente HTTP, porta 80.
+10. O acesso à aplicação deverá ser HTTPS, com a terminação TLS realizada pelo Nginx dentro do container do frontend.
 11. Migrations do Alembic executadas automaticamente.
 
 ### 3. Deploy
