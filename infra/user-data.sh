@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euxo pipefail
 
-dnf install -y docker awscli-2
+dnf install -y docker awscli-2 python3
 
 systemctl enable --now docker
 

@@ -48,6 +48,14 @@ resource "aws_iam_role_policy" "ec2_app" {
         Resource = "*"
       },
       {
+        Sid    = "DescribeDatabase"
+        Effect = "Allow"
+        Action = [
+          "rds:DescribeDBInstances"
+        ]
+        Resource = "*"
+      },
+      {
         Sid      = "ReadDatabasePassword"
         Effect   = "Allow"
         Action   = "secretsmanager:GetSecretValue"
@@ -58,7 +66,7 @@ resource "aws_iam_role_policy" "ec2_app" {
         Effect   = "Allow"
         Action   = "secretsmanager:GetSecretValue"
         Resource = aws_secretsmanager_secret.duckdns.arn
-      },
+      }
     ]
   })
 }
