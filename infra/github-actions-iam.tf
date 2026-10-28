@@ -31,7 +31,7 @@ resource "aws_iam_role" "github_actions" {
         }
 
         StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:ghbamorim/aws-pratice:*"
+          "token.actions.githubusercontent.com:sub" = "repo:ghbamorim@79848031/aws-pratice@1427495511:ref:refs/tags/*"
         }
       }
     }]
@@ -108,7 +108,9 @@ resource "aws_iam_role_policy" "github_actions" {
         Effect = "Allow"
 
         Action = [
-          "ec2:DescribeInstances"
+          "ec2:DescribeInstances",
+          "ec2:DescribeInstanceStatus",
+          "ssm:DescribeInstanceInformation"
         ]
 
         Resource = "*"

@@ -34,7 +34,8 @@ resource "aws_iam_role_policy" "ec2_app" {
         Effect = "Allow"
         Action = [
           "ecr:BatchGetImage",
-          "ecr:GetDownloadUrlForLayer"
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:DescribeImages"
         ]
         Resource = [
           aws_ecr_repository.api.arn,
