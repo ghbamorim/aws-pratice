@@ -52,7 +52,13 @@ resource "aws_iam_role_policy" "ec2_app" {
         Effect   = "Allow"
         Action   = "secretsmanager:GetSecretValue"
         Resource = aws_db_instance.postgres.master_user_secret[0].secret_arn
-      }
+      },
+      {
+        Sid      = "ReadDuckDnsToken"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = aws_secretsmanager_secret.duckdns.arn
+      },
     ]
   })
 }
