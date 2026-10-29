@@ -16,7 +16,7 @@ concurrency:
 env:
   AWS_REGION: us-east-2
   AWS_ACCOUNT_ID: "242627333067"
-  EC2_INSTANCE_ID: i-087a7db7b197c52fd
+  EC2_INSTANCE_ID: i-0226db1f7ab4adbb4
   DB_HOST: aws-pratice-postgres.cbwmwcm8yv8g.us-east-2.rds.amazonaws.com
   DB_SECRET_ARN: arn:aws:secretsmanager:us-east-2:242627333067:secret:rds!db-12f24d05-048d-42a5-a4da-8173f5ca714a-e3SUvn
 
