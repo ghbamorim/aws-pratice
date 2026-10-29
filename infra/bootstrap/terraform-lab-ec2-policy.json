@@ -4,7 +4,7 @@
     {
       "Sid": "ReadEC2",
       "Effect": "Allow",
-      "Action": ["ec2:Describe*"],
+      "Action": ["ec2:Describe*", "ec2:GetManagedPrefixListEntries"],
       "Resource": "*"
     },
     {
@@ -104,7 +104,11 @@
         "s3:GetBucketObjectLockConfiguration",
         "s3:GetBucketRequestPayment",
         "s3:GetAccelerateConfiguration",
-        "s3:GetBucketOwnershipControls"
+        "s3:GetBucketOwnershipControls",
+        "s3:PutEncryptionConfiguration",
+        "s3:GetEncryptionConfiguration",
+        "s3:PutBucketVersioning",
+        "s3:GetBucketVersioning"
       ],
       "Resource": "arn:aws:s3:::aws-pratice-attachments-*"
     },

@@ -59,6 +59,8 @@
       }
     },
     {
+      "Sid": "ManageEc2AppPolicy",
+      "Effect": "Allow",
       "Action": [
         "iam:CreatePolicy",
         "iam:DeletePolicy",
@@ -67,11 +69,11 @@
         "iam:ListPolicyVersions",
         "iam:CreatePolicyVersion",
         "iam:DeletePolicyVersion",
-        "iam:ListEntitiesForPolicy"
+        "iam:ListEntitiesForPolicy",
+        "iam:TagPolicy",
+        "iam:UntagPolicy"
       ],
-      "Effect": "Allow",
-      "Resource": "arn:aws:iam::242627333067:policy/aws-pratice-ec2-app-access",
-      "Sid": "ManageEc2AppPolicy"
+      "Resource": "arn:aws:iam::242627333067:policy/aws-pratice-ec2-app-access"
     },
     {
       "Action": ["iam:AttachRolePolicy", "iam:DetachRolePolicy"],

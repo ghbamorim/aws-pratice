@@ -25,7 +25,8 @@
         "ssm:CancelCommand",
         "ssm:StartSession",
         "ssm:TerminateSession",
-        "ssm:ResumeSession"
+        "ssm:ResumeSession",
+        "ssm:GetParameter"
       ],
       "Resource": "*",
       "Condition": {

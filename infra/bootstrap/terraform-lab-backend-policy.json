@@ -1,0 +1,28 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListTerraformState",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": "arn:aws:s3:::aws-pratice-terraform-state-242627333067-us-east-2",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": ["infra/terraform.tfstate"]
+        }
+      }
+    },
+    {
+      "Sid": "ReadWriteTerraformState",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::aws-pratice-terraform-state-242627333067-us-east-2/infra/terraform.tfstate"
+    },
+    {
+      "Sid": "ManageTerraformStateLock",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::aws-pratice-terraform-state-242627333067-us-east-2/infra/terraform.tfstate.tflock"
+    }
+  ]
+}
