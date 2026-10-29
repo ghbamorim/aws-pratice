@@ -2,7 +2,6 @@ resource "aws_iam_user" "terraform_lab" {
   name = "terraform-lab"
 }
 
-# Preserve os endereços Terraform existentes (terraform_lab_service).
 locals {
   lab_policies = {
     ec2     = "terraform-lab-ec2-policy.json"
