@@ -16,9 +16,6 @@ concurrency:
 env:
   AWS_REGION: us-east-2
   AWS_ACCOUNT_ID: "242627333067"
-  EC2_INSTANCE_ID: i-0226db1f7ab4adbb4
-  DB_HOST: aws-pratice-postgres.cbwmwcm8yv8g.us-east-2.rds.amazonaws.com
-  DB_SECRET_ARN: arn:aws:secretsmanager:us-east-2:242627333067:secret:rds!db-12f24d05-048d-42a5-a4da-8173f5ca714a-e3SUvn
 
 jobs:
   deploy:
@@ -48,6 +45,49 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::242627333067:role/aws-pratice-github-actions-deploy
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Discover deployment resources
+        run: |
+          set -euo pipefail
+
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters \
+              "Name=tag:Name,Values=aws-pratice-app" \
+              "Name=instance-state-name,Values=running" \
+            --query "Reservations[].Instances[].InstanceId | [0]" \
+            --output text)
+
+          if [[ -z "$INSTANCE_ID" || "$INSTANCE_ID" == "None" ]]; then
+            echo "EC2 instance not found"
+            exit 1
+          fi
+
+          DB_HOST=$(aws rds describe-db-instances \
+            --db-instance-identifier aws-pratice-postgres \
+            --query "DBInstances[0].Endpoint.Address" \
+            --output text)
+
+          DB_SECRET_ARN=$(aws rds describe-db-instances \
+            --db-instance-identifier aws-pratice-postgres \
+            --query "DBInstances[0].MasterUserSecret.SecretArn" \
+            --output text)
+
+          if [[ -z "$DB_HOST" || "$DB_HOST" == "None" ]]; then
+            echo "RDS endpoint not found"
+            exit 1
+          fi
+
+          if [[ -z "$DB_SECRET_ARN" || "$DB_SECRET_ARN" == "None" ]]; then
+            echo "RDS secret ARN not found"
+            exit 1
+          fi
+
+          echo "EC2_INSTANCE_ID=$INSTANCE_ID" >> "$GITHUB_ENV"
+          echo "DB_HOST=$DB_HOST" >> "$GITHUB_ENV"
+          echo "DB_SECRET_ARN=$DB_SECRET_ARN" >> "$GITHUB_ENV"
+
+          echo "EC2 instance: $INSTANCE_ID"
+          echo "RDS host: $DB_HOST"
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2

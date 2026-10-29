@@ -1,3 +1,4 @@
+
 data "aws_iam_policy_document" "github_ssm" {
   statement {
     sid    = "SendDeploymentCommand"
@@ -20,6 +21,18 @@ data "aws_iam_policy_document" "github_ssm" {
     actions = [
       "ssm:GetCommandInvocation",
       "ssm:ListCommandInvocations"
+    ]
+
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "DescribeDeploymentResources"
+    effect = "Allow"
+
+    actions = [
+      "ec2:DescribeInstances",
+      "rds:DescribeDBInstances"
     ]
 
     resources = ["*"]
