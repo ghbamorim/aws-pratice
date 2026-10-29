@@ -52,8 +52,6 @@ aws ecr get-login-password \
 # Pull the release images and start the application.
 docker compose pull
 docker compose up -d --remove-orphans
+docker compose ps
 
 unset DATABASE_URL
-
-# Display the status of the containers.
-docker compose ps
