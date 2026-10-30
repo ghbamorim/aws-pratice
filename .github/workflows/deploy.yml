@@ -1,0 +1,49 @@
+name: Deploy
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    if: startsWith(github.event.release.tag_name, 'v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::242627333067:role/aws-pratice-github-actions-deploy
+          aws-region: us-east-2
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push API
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          docker build \
+            -t "$ECR_REGISTRY/aws-pratice-api:$IMAGE_TAG" \
+            ./backend
+
+          docker push "$ECR_REGISTRY/aws-pratice-api:$IMAGE_TAG"
+
+      - name: Build and push frontend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          docker build \
+            -t "$ECR_REGISTRY/aws-pratice-frontend:$IMAGE_TAG" \
+            ./frontend
+
+          docker push "$ECR_REGISTRY/aws-pratice-frontend:$IMAGE_TAG"

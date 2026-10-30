@@ -118,6 +118,12 @@
       "Effect": "Allow",
       "Resource": "arn:aws:iam::242627333067:role/aws-pratice-github-actions-deploy",
       "Sid": "ManageGitHubActionsRolePolicy"
+    },
+    {
+      "Sid": "ListOidcProviders",
+      "Effect": "Allow",
+      "Action": "iam:ListOpenIDConnectProviders",
+      "Resource": "*"
     }
   ]
 }
