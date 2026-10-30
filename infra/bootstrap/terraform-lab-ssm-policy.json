@@ -26,7 +26,15 @@
         "ssm:StartSession",
         "ssm:TerminateSession",
         "ssm:ResumeSession",
-        "ssm:GetParameter"
+        "ssm:GetParameter",
+        "ssm:CreateDocument",
+        "ssm:UpdateDocument",
+        "ssm:UpdateDocumentDefaultVersion",
+        "ssm:DeleteDocument",
+        "ssm:DescribeDocument",
+        "ssm:ListDocumentVersions",
+        "ssm:GetDocument",
+        "ssm:DescribeDocumentPermission"
       ],
       "Resource": "*",
       "Condition": {

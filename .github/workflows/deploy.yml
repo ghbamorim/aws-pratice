@@ -34,6 +34,7 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+
       - name: Build and push API
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -55,3 +56,13 @@ jobs:
             ./frontend
 
           docker push "$ECR_REGISTRY/aws-pratice-frontend:$IMAGE_TAG"
+
+      - name: Execute SSM deploy
+        env:
+          RELEASE_VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          aws ssm send-command \
+            --document-name pratice-deploy \
+            --targets "Key=tag:Name,Values=aws-pratice-app" \
+            --parameters "version=$RELEASE_VERSION" \
+            --region us-east-2
