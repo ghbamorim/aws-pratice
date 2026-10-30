@@ -1,3 +1,11 @@
+variable "github_owner_id" {
+  type = string
+}
+
+variable "github_repository_id" {
+  type = string
+}
+
 variable "github_repository" {
   description = "Repositorio GitHub no formato owner/repo"
   type        = string
@@ -28,8 +36,9 @@ resource "aws_iam_role" "github_actions" {
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
         }
+
         StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:ref:refs/tags/v*"
+          "token.actions.githubusercontent.com:sub" = "repo:ghbamorim@${var.github_owner_id}/aws-pratice@${var.github_repository_id}:ref:refs/tags/v*"
         }
       }
     }]

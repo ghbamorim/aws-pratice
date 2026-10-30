@@ -47,20 +47,68 @@ jobs:
           docker build -t "$REGISTRY/aws-pratice-frontend:$TAG" ./frontend
           docker push "$REGISTRY/aws-pratice-frontend:$TAG"
 
+      - name: Discover AWS resources
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters \
+              "Name=tag:Name,Values=aws-pratice-app" \
+              "Name=instance-state-name,Values=running" \
+            --query "Reservations[].Instances[].InstanceId" \
+            --output text)
+
+          DB_ENDPOINT=$(aws rds describe-db-instances \
+            --db-instance-identifier aws-pratice-postgres \
+            --query "DBInstances[0].Endpoint.Address" \
+            --output text)
+
+          SECRET_ARN=$(aws rds describe-db-instances \
+            --db-instance-identifier aws-pratice-postgres \
+            --query "DBInstances[0].MasterUserSecret.SecretArn" \
+            --output text)
+
+          if [[ -z "$INSTANCE_ID" || "$INSTANCE_ID" == "None" ]]; then
+            echo "Erro: EC2 nao encontrada."
+            exit 1
+          fi
+
+          if [[ "$INSTANCE_ID" == *" "* ]]; then
+            echo "Erro: mais de uma EC2 encontrada."
+            exit 1
+          fi
+
+          if [[ -z "$DB_ENDPOINT" || "$DB_ENDPOINT" == "None" ]]; then
+            echo "Erro: endpoint do RDS nao encontrado."
+            exit 1
+          fi
+
+          if [[ -z "$SECRET_ARN" || "$SECRET_ARN" == "None" ]]; then
+            echo "Erro: segredo do RDS nao encontrado."
+            exit 1
+          fi
+
+          {
+            echo "INSTANCE_ID=$INSTANCE_ID"
+            echo "DB_ENDPOINT=$DB_ENDPOINT"
+            echo "SECRET_ARN=$SECRET_ARN"
+          } >> "$GITHUB_ENV"
+
+          echo "EC2 encontrada: $INSTANCE_ID"
+          echo "RDS encontrado: $DB_ENDPOINT"
+
       - name: Deploy via SSM
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
           TAG: ${{ github.ref_name }}
-          INSTANCE_ID: i-0a411cd5dd7bc06f2
-          DB_ENDPOINT: aws-pratice-postgres.cbwmwcm8yv8g.us-east-2.rds.amazonaws.com
-          SECRET_ARN: arn:aws:secretsmanager:us-east-2:242627333067:secret:rds!db-f0e44b95-7549-4387-ad47-68ea6afd70f9-xRigPC
         run: |
           python3 - <<'PY'
           import base64
           import json
           import os
+          import shlex
           import subprocess
-          import time
 
           def encode_file(path):
               with open(path, "rb") as f:
@@ -69,21 +117,21 @@ jobs:
           compose = encode_file("infra/docker-compose.yml")
           deploy = encode_file("infra/deploy.sh")
 
+          args = [
+              os.environ["REGISTRY"],
+              os.environ["TAG"],
+              os.environ["DB_ENDPOINT"],
+              os.environ["SECRET_ARN"]
+          ]
+
           commands = [
               "set -eu",
               "mkdir -p /opt/aws-pratice",
               f"printf '%s' '{compose}' | base64 -d > /opt/aws-pratice/docker-compose.yml",
               f"printf '%s' '{deploy}' | base64 -d > /opt/aws-pratice/deploy.sh",
               "chmod 700 /opt/aws-pratice/deploy.sh",
-              (
-                  "bash /opt/aws-pratice/deploy.sh "
-                  + " ".join([
-                      os.environ["REGISTRY"],
-                      os.environ["TAG"],
-                      os.environ["DB_ENDPOINT"],
-                      os.environ["SECRET_ARN"]
-                  ])
-              )
+              "bash /opt/aws-pratice/deploy.sh " +
+              " ".join(shlex.quote(arg) for arg in args)
           ]
 
           response = subprocess.check_output([
