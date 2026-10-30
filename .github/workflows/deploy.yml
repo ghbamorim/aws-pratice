@@ -1,0 +1,118 @@
+name: Deploy AWS
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::242627333067:role/aws-pratice-github-actions-deploy
+          aws-region: us-east-2
+
+      - name: Login to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push API
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          docker build -t "$REGISTRY/aws-pratice-api:$TAG" ./backend
+          docker push "$REGISTRY/aws-pratice-api:$TAG"
+
+      - name: Build and push frontend
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          docker build -t "$REGISTRY/aws-pratice-frontend:$TAG" ./frontend
+          docker push "$REGISTRY/aws-pratice-frontend:$TAG"
+
+      - name: Deploy via SSM
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          TAG: ${{ github.ref_name }}
+          INSTANCE_ID: i-0a411cd5dd7bc06f2
+          DB_ENDPOINT: aws-pratice-postgres.cbwmwcm8yv8g.us-east-2.rds.amazonaws.com
+          SECRET_ARN: arn:aws:secretsmanager:us-east-2:242627333067:secret:rds!db-f0e44b95-7549-4387-ad47-68ea6afd70f9-xRigPC
+        run: |
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import subprocess
+          import time
+
+          def encode_file(path):
+              with open(path, "rb") as f:
+                  return base64.b64encode(f.read()).decode()
+
+          compose = encode_file("infra/docker-compose.yml")
+          deploy = encode_file("infra/deploy.sh")
+
+          commands = [
+              "set -eu",
+              "mkdir -p /opt/aws-pratice",
+              f"printf '%s' '{compose}' | base64 -d > /opt/aws-pratice/docker-compose.yml",
+              f"printf '%s' '{deploy}' | base64 -d > /opt/aws-pratice/deploy.sh",
+              "chmod 700 /opt/aws-pratice/deploy.sh",
+              (
+                  "bash /opt/aws-pratice/deploy.sh "
+                  + " ".join([
+                      os.environ["REGISTRY"],
+                      os.environ["TAG"],
+                      os.environ["DB_ENDPOINT"],
+                      os.environ["SECRET_ARN"]
+                  ])
+              )
+          ]
+
+          response = subprocess.check_output([
+              "aws", "ssm", "send-command",
+              "--instance-ids", os.environ["INSTANCE_ID"],
+              "--document-name", "AWS-RunShellScript",
+              "--parameters", json.dumps({"commands": commands}),
+              "--query", "Command.CommandId",
+              "--output", "text"
+          ], text=True).strip()
+
+          print(f"SSM Command ID: {response}")
+
+          subprocess.run([
+              "aws", "ssm", "wait", "command-executed",
+              "--command-id", response,
+              "--instance-id", os.environ["INSTANCE_ID"]
+          ], check=True)
+
+          result = json.loads(subprocess.check_output([
+              "aws", "ssm", "get-command-invocation",
+              "--command-id", response,
+              "--instance-id", os.environ["INSTANCE_ID"]
+          ], text=True))
+
+          print("Status:", result["Status"])
+          print(result.get("StandardOutputContent", ""))
+
+          if result["Status"] != "Success":
+              print(result.get("StandardErrorContent", ""))
+              raise SystemExit(1)
+          PY
