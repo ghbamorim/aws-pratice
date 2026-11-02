@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: lab
+      POSTGRES_USER: lab
+      POSTGRES_PASSWORD: lab_local_only
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lab -d lab"]
+      interval: 3s
+      retries: 20
+  lambda-local:
+    build: ./lambda
+    environment:
+      LAB_MODE: local
+    ports:
+      - "127.0.0.1:9000:8080"
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://lab:lab_local_only@db:5432/lab
+      LAMBDA_URL: http://lambda-local:8080/invoke
+      LAB_FAULTS_ENABLED: "true"
+      CORS_ORIGINS: http://localhost:5173
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      lambda-local:
+        condition: service_started
+    volumes:
+      - ./backend/app:/code/app
+  frontend:
+    build: ./frontend
+    ports:
+      - "127.0.0.1:5173:5173"
+    depends_on:
+      - api
+    volumes:
+      - ./frontend/src:/app/src
+volumes:
+  postgres_data:
