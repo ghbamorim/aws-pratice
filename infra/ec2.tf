@@ -1,3 +1,4 @@
+
 # Get the latest Amazon Linux 2023 AMI
 data "aws_ami" "amazon_linux" {
   most_recent = true
@@ -48,7 +49,7 @@ resource "aws_iam_role_policy_attachment" "ec2_ecr" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
-# Enable AWS Systems Manager Session Manager
+# Enable AWS Systems Manager
 resource "aws_iam_role_policy_attachment" "ec2_ssm" {
   role       = aws_iam_role.ec2.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
@@ -60,25 +61,35 @@ resource "aws_iam_instance_profile" "ec2" {
   role = aws_iam_role.ec2.name
 }
 
-# Install and enable Docker on first boot
+# Install Docker and Docker Compose on first boot
 locals {
   ec2_user_data = <<-EOF
     #!/bin/bash
     set -euxo pipefail
 
     dnf update -y
-    dnf install -y docker
+    dnf install -y docker amazon-ssm-agent
 
     systemctl enable --now docker
     systemctl enable --now amazon-ssm-agent
+
+    mkdir -p /usr/local/lib/docker/cli-plugins
+
+    curl -fsSL \
+      https://github.com/docker/compose/releases/download/v2.39.4/docker-compose-linux-x86_64 \
+      -o /usr/local/lib/docker/cli-plugins/docker-compose
+
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+    docker compose version
   EOF
 }
 
-# EC2 instance for the FastAPI backend
+# EC2 instance for the application
 resource "aws_instance" "api" {
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = "t3.micro"
-  subnet_id              = sort(data.aws_subnets.default.ids)[0]
+  subnet_id              = aws_subnet.ec2_public.id
   vpc_security_group_ids = [aws_security_group.api.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2.name
 
@@ -99,13 +110,20 @@ resource "aws_instance" "api" {
   }
 
   tags = {
-    Name    = "aws-pratice-api"
-    Project = "aws-pratice"
-    Role    = "api"
+    Name      = "aws-pratice-api"
+    Project   = "aws-pratice"
+    Role      = "api"
+    ManagedBy = "Terraform"
   }
+
+  depends_on = [
+    aws_route_table_association.ec2_public,
+    aws_iam_role_policy_attachment.ec2_ssm,
+    aws_iam_role_policy_attachment.ec2_ecr
+  ]
 }
 
-# Stable public IP address for the API
+# Stable public IP address
 resource "aws_eip" "api" {
   domain = "vpc"
 
@@ -116,15 +134,14 @@ resource "aws_eip" "api" {
   }
 }
 
-# Associate the Elastic IP with the EC2 instance
+# Associate Elastic IP with EC2
 resource "aws_eip_association" "api" {
   instance_id   = aws_instance.api.id
   allocation_id = aws_eip.api.id
 }
 
-# Expose useful infrastructure information
 output "api_public_ip" {
-  description = "Public IP address of the FastAPI EC2 instance"
+  description = "Public IP address of the application EC2 instance"
   value       = aws_eip.api.public_ip
 }
 
