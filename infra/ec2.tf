@@ -99,9 +99,9 @@ resource "aws_instance" "api" {
   }
 
   tags = {
-    Name      = "aws-pratice-api"
-    Project   = "aws-pratice"
-    ManagedBy = "Terraform"
+    Name    = "aws-pratice-api"
+    Project = "aws-pratice"
+    Role    = "api"
   }
 }
 

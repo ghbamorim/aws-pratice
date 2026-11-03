@@ -1,3 +1,4 @@
+
 resource "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
 
@@ -74,6 +75,17 @@ resource "aws_iam_role_policy" "github_ecr" {
           "arn:aws:ecr:us-east-2:242627333067:repository/aws-pratice-api",
           "arn:aws:ecr:us-east-2:242627333067:repository/aws-pratice-frontend"
         ]
+      },
+      {
+        Sid    = "DiscoverDeploymentInstance"
+        Effect = "Allow"
+
+        Action = [
+          "ec2:DescribeInstances",
+          "ssm:DescribeInstanceInformation"
+        ]
+
+        Resource = "*"
       }
     ]
   })

@@ -17,7 +17,6 @@ concurrency:
 env:
   AWS_REGION: us-east-2
   AWS_ACCOUNT_ID: "242627333067"
-  EC2_INSTANCE_ID: i-0f685ef7d87f1413e
   ECR_REGISTRY: 242627333067.dkr.ecr.us-east-2.amazonaws.com
 
 jobs:
@@ -92,6 +91,32 @@ jobs:
               json.dumps({"commands": commands})
           )
           PY
+
+      - name: Find EC2 instance
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          instance_id=$(aws ec2 describe-instances \
+            --filters \
+              "Name=tag:Project,Values=aws-pratice" \
+              "Name=tag:Role,Values=api" \
+              "Name=instance-state-name,Values=running" \
+            --query 'Reservations[].Instances[].InstanceId' \
+            --output text)
+
+          if [[ -z "$instance_id" || "$instance_id" == *$'\t'* ]]; then
+            echo "Expected exactly one running API instance. Found: $instance_id"
+            exit 1
+          fi
+
+          echo "EC2_INSTANCE_ID=$instance_id" >> "$GITHUB_ENV"
+          echo "Selected instance: $instance_id"
+
+          aws ssm describe-instance-information \
+            --filters "Key=InstanceIds,Values=$instance_id" \
+            --query 'InstanceInformationList[].{InstanceId:InstanceId,PingStatus:PingStatus}' \
+            --output table
 
       - name: Deploy to EC2 through SSM
         shell: bash
