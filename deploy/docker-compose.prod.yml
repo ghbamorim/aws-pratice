@@ -1,0 +1,24 @@
+services:
+  api:
+    image: 242627333067.dkr.ecr.us-east-2.amazonaws.com/aws-pratice-api:latest
+    restart: unless-stopped
+
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      LAB_MODE: aws
+      LAB_FAULTS_ENABLED: "true"
+      AWS_REGION: us-east-2
+      LAMBDA_FUNCTION_NAME: aws-pratice-lambda
+
+    expose:
+      - "8000"
+
+  frontend:
+    image: 242627333067.dkr.ecr.us-east-2.amazonaws.com/aws-pratice-frontend:latest
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+
+    depends_on:
+      - api

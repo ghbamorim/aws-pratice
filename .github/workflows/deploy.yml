@@ -1,0 +1,128 @@
+name: Deploy AWS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-2
+  AWS_ACCOUNT_ID: "242627333067"
+  EC2_INSTANCE_ID: i-0f685ef7d87f1413e
+  ECR_REGISTRY: 242627333067.dkr.ecr.us-east-2.amazonaws.com
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::242627333067:role/aws-pratice-github-actions-deploy
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker images
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for service in api frontend; do
+            if [ "$service" = "api" ]; then
+              context="backend"
+            else
+              context="frontend"
+            fi
+
+            image="$ECR_REGISTRY/aws-pratice-$service"
+
+            docker build \
+              -t "$image:${GITHUB_SHA}" \
+              -t "$image:latest" \
+              "./$context"
+
+            docker push "$image:${GITHUB_SHA}"
+            docker push "$image:latest"
+          done
+
+      - name: Prepare SSM deployment command
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64
+          import json
+          from pathlib import Path
+
+          commands = [
+              "set -eu",
+              "install -d -m 700 /opt/aws-pratice",
+          ]
+
+          for filename in ("compose.prod.yml", "deploy.sh"):
+              path = Path("deploy") / filename
+              encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+              destination = f"/opt/aws-pratice/{filename}"
+
+              commands.append(
+                  f"printf '%s' '{encoded}' | base64 -d > '{destination}'"
+              )
+
+          commands.extend([
+              "chmod 600 /opt/aws-pratice/compose.prod.yml",
+              "chmod 700 /opt/aws-pratice/deploy.sh",
+              "bash /opt/aws-pratice/deploy.sh",
+          ])
+
+          Path("ssm-parameters.json").write_text(
+              json.dumps({"commands": commands})
+          )
+          PY
+
+      - name: Deploy to EC2 through SSM
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          command_id=$(aws ssm send-command \
+            --instance-ids "$EC2_INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --parameters file://ssm-parameters.json \
+            --timeout-seconds 600 \
+            --query 'Command.CommandId' \
+            --output text)
+
+          echo "SSM command: $command_id"
+
+          if ! aws ssm wait command-executed \
+            --command-id "$command_id" \
+            --instance-id "$EC2_INSTANCE_ID"; then
+
+            aws ssm get-command-invocation \
+              --command-id "$command_id" \
+              --instance-id "$EC2_INSTANCE_ID" \
+              --query '{Status:Status,Details:StatusDetails,Error:StandardErrorContent}' \
+              --output json
+
+            exit 1
+          fi
+
+          aws ssm get-command-invocation \
+            --command-id "$command_id" \
+            --instance-id "$EC2_INSTANCE_ID" \
+            --query '{Status:Status,Output:StandardOutputContent}' \
+            --output json

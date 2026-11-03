@@ -1,0 +1,1 @@
+{"errorMessage": "Intentional Lambda failure", "errorType": "RuntimeError", "requestId": "30e854c1-7e3e-4886-b003-c382a5343a22", "stackTrace": ["  File \"/var/task/handler.py\", line 11, in handler\n    raise RuntimeError('Intentional Lambda failure')\n"]}
