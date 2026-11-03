@@ -57,6 +57,9 @@ PY
 unset SECRET_JSON
 export DATABASE_URL
 
+# Remove the database URL when the script exits
+trap 'unset DATABASE_URL' EXIT
+
 # Authenticate Docker with Amazon ECR
 echo "Authenticating with Amazon ECR..."
 
@@ -65,7 +68,7 @@ aws ecr get-login-password --region "$AWS_REGION" |
     --username AWS \
     --password-stdin "$ECR_REGISTRY"
 
-# Download the latest application images
+# Download application images
 echo "Pulling Docker images..."
 
 docker compose \
@@ -81,15 +84,14 @@ docker compose \
   --remove-orphans \
   --force-recreate
 
-# Remove credentials from the shell environment
-unset DATABASE_URL
-
 # Remove unused Docker images
 echo "Cleaning up unused images..."
 
 docker image prune -f
 
 # Show running containers
+echo "Checking containers..."
+
 docker compose \
   -f "$COMPOSE_FILE" \
   ps
