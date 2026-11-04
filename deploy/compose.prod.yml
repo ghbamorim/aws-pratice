@@ -36,29 +36,3 @@ services:
 
     depends_on:
       - api
-
-  datadog:
-    image: registry.datadoghq.com/agent:7
-    restart: unless-stopped
-
-    environment:
-      DD_API_KEY: ${DD_API_KEY:?DD_API_KEY is required}
-      DD_SITE: ${DD_SITE:-datadoghq.com}
-
-      DD_ENV: lab
-      DD_TAGS: "project:aws-pratice"
-
-      DD_APM_ENABLED: "true"
-      DD_APM_NON_LOCAL_TRAFFIC: "true"
-
-      DD_LOGS_ENABLED: "true"
-      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
-      DD_CONTAINER_EXCLUDE: "name:datadog"
-
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /proc:/host/proc:ro
-      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
-
-    expose:
-      - "8126"
