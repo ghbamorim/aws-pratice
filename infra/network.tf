@@ -26,22 +26,11 @@ resource "aws_security_group" "api" {
 resource "aws_vpc_security_group_ingress_rule" "api_http" {
   security_group_id = aws_security_group.api.id
 
-  description = "HTTP access to FastAPI"
-  cidr_ipv4   = "0.0.0.0/0"
-  from_port   = 80
-  to_port     = 80
-  ip_protocol = "tcp"
-}
-
-# Allow HTTPS access to the API
-resource "aws_vpc_security_group_ingress_rule" "api_https" {
-  security_group_id = aws_security_group.api.id
-
-  description = "HTTPS access to FastAPI"
-  cidr_ipv4   = "0.0.0.0/0"
-  from_port   = 443
-  to_port     = 443
-  ip_protocol = "tcp"
+  description    = "HTTP access to FastAPI"
+  prefix_list_id = data.aws_ec2_managed_prefix_list.cloudfront.id
+  from_port      = 80
+  to_port        = 80
+  ip_protocol    = "tcp"
 }
 
 # Allow outbound traffic from EC2 to the internet and AWS services
@@ -119,4 +108,8 @@ resource "aws_db_subnet_group" "database" {
     Name      = "aws-pratice-postgres-subnets"
     ManagedBy = "Terraform"
   }
+}
+
+data "aws_ec2_managed_prefix_list" "cloudfront" {
+  name = "com.amazonaws.global.cloudfront.origin-facing"
 }

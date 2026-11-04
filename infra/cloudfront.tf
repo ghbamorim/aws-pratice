@@ -35,6 +35,13 @@ resource "aws_cloudfront_distribution" "frontend" {
     min_ttl     = 0
     default_ttl = 0
     max_ttl     = 0
+
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.auth.arn
+    }
+
   }
 
   ordered_cache_behavior {
@@ -61,6 +68,11 @@ resource "aws_cloudfront_distribution" "frontend" {
       cookies {
         forward = "all"
       }
+    }
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.auth.arn
     }
 
     min_ttl     = 0

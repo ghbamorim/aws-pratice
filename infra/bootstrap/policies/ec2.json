@@ -136,7 +136,20 @@
         "cloudfront:UntagResource",
         "cloudfront:ListTagsForResource",
         "cloudfront:ListCachePolicies",
-        "cloudfront:GetCachePolicy"
+        "cloudfront:GetCachePolicy",
+        "cloudfront:CreateKeyValueStore",
+        "cloudfront:DescribeKeyValueStore",
+        "cloudfront:UpdateKeyValueStore",
+        "cloudfront:DeleteKeyValueStore",
+        "cloudfront:CreateFunction",
+        "cloudfront:PublishFunction",
+        "cloudfront:DescribeFunction",
+        "cloudfront-keyvaluestore:DescribeKeyValueStore",
+        "cloudfront-keyvaluestore:GetKey",
+        "cloudfront-keyvaluestore:PutKey",
+        "cloudfront-keyvaluestore:ListKeys",
+        "cloudfront:GetFunction",
+        "cloudfront:DeleteFunction"
       ],
       "Resource": "*"
     }
