@@ -6,14 +6,21 @@ AWS_ACCOUNT_ID="242627333067"
 
 ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 
-SECRET_ARN="arn:aws:secretsmanager:us-east-2:242627333067:secret:rds!db-41981a69-430c-44c6-969e-f98f822293ca-gRWvxz"
-DB_HOST="aws-pratice-postgres.cbwmwcm8yv8g.us-east-2.rds.amazonaws.com"
-DB_NAME="awspratice"
-
 DEPLOY_DIR="/opt/aws-pratice"
 COMPOSE_FILE="${DEPLOY_DIR}/compose.prod.yml"
 
 echo "Starting deployment..."
+
+# SSM may connect while first-boot SSI installation is still running.
+timeout 900 cloud-init status --wait
+test -f /var/lib/aws-pratice/observability-ready
+docker exec dd-agent agent health >/dev/null
+
+# Terraform writes the current RDS location and secret ARN, never credentials.
+source /etc/aws-pratice-deploy.env
+: "${SECRET_ARN:?Missing database secret ARN}"
+: "${DB_HOST:?Missing database host}"
+: "${DB_NAME:?Missing database name}"
 
 cd "$DEPLOY_DIR"
 
