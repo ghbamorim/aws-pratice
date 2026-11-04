@@ -17,6 +17,13 @@ resource "aws_iam_role_policy" "ec2_application" {
         Resource = aws_db_instance.postgres.master_user_secret[0].secret_arn
       },
       {
+        # The Agent needs only its own API key, never the Datadog application key.
+        Sid      = "ReadDatadogApiKey"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = aws_secretsmanager_secret.datadog_api_key.arn
+      },
+      {
         Sid    = "InvokeApplicationLambda"
         Effect = "Allow"
 

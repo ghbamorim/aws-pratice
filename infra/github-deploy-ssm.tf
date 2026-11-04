@@ -1,6 +1,6 @@
 resource "aws_iam_role_policy" "github_deploy_ssm" {
   name = "aws-pratice-github-deploy-ssm"
-  role = "aws-pratice-github-actions-deploy"
+  role = aws_iam_role.github_actions.name
 
   policy = jsonencode({
     Version = "2012-10-17"

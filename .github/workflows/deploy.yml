@@ -88,7 +88,8 @@ jobs:
           ])
 
           Path("ssm-parameters.json").write_text(
-              json.dumps({"commands": commands})
+              # First-boot Datadog setup can take longer than a normal redeploy.
+              json.dumps({"commands": commands, "executionTimeout": ["1200"]})
           )
           PY
 
@@ -133,9 +134,32 @@ jobs:
 
           echo "SSM command: $command_id"
 
-          if ! aws ssm wait command-executed \
+          # The CLI waiter stops after ~100s; allow time for first-boot SSI setup.
+          for attempt in {1..12}; do
+            if aws ssm wait command-executed \
+              --command-id "$command_id" \
+              --instance-id "$EC2_INSTANCE_ID"; then
+              break
+            fi
+
+            status=$(aws ssm get-command-invocation \
+              --command-id "$command_id" \
+              --instance-id "$EC2_INSTANCE_ID" \
+              --query Status --output text)
+
+            case "$status" in
+              Pending|InProgress|Delayed) continue ;;
+              Success) break ;;
+              *) break ;;
+            esac
+          done
+
+          status=$(aws ssm get-command-invocation \
             --command-id "$command_id" \
-            --instance-id "$EC2_INSTANCE_ID"; then
+            --instance-id "$EC2_INSTANCE_ID" \
+            --query Status --output text)
+
+          if [[ "$status" != "Success" ]]; then
 
             aws ssm get-command-invocation \
               --command-id "$command_id" \

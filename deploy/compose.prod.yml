@@ -4,11 +4,18 @@ services:
     restart: unless-stopped
 
     environment:
+      # SSI reads these tags for traces; the Agent reads the matching labels.
+      DD_SERVICE: aws-pratice-api
+      DD_ENV: lab
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       LAB_MODE: aws
       LAB_FAULTS_ENABLED: "true"
       AWS_REGION: us-east-2
       LAMBDA_FUNCTION_NAME: aws-pratice-lambda
+
+    labels:
+      com.datadoghq.tags.service: aws-pratice-api
+      com.datadoghq.tags.env: lab
 
     expose:
       - "8000"
@@ -16,6 +23,15 @@ services:
   frontend:
     image: 242627333067.dkr.ecr.us-east-2.amazonaws.com/aws-pratice-frontend:latest
     restart: unless-stopped
+
+    # Tag nginx container logs and metrics consistently with the API.
+    environment:
+      DD_SERVICE: aws-pratice-frontend
+      DD_ENV: lab
+
+    labels:
+      com.datadoghq.tags.service: aws-pratice-frontend
+      com.datadoghq.tags.env: lab
 
     ports:
       - "80:80"
