@@ -9,6 +9,12 @@ services:
       LAB_FAULTS_ENABLED: "true"
       AWS_REGION: us-east-2
       LAMBDA_FUNCTION_NAME: aws-pratice-lambda
+      DD_SERVICE: aws-pratice-api
+      DD_ENV: lab
+
+    labels:
+      com.datadoghq.tags.service: aws-pratice-api
+      com.datadoghq.tags.env: lab
 
     expose:
       - "8000"
@@ -19,6 +25,14 @@ services:
 
     ports:
       - "80:80"
+
+    environment:
+      DD_SERVICE: aws-pratice-frontend
+      DD_ENV: lab
+
+    labels:
+      com.datadoghq.tags.service: aws-pratice-frontend
+      com.datadoghq.tags.env: lab
 
     depends_on:
       - api

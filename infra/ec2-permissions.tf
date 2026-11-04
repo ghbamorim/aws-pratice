@@ -25,7 +25,17 @@ resource "aws_iam_role_policy" "ec2_application" {
         ]
 
         Resource = aws_lambda_function.processor.arn
-      }
+      },
+      {
+        # Allow the EC2 instance to read the Datadog API key.
+        Sid    = "ReadDatadogApiKey"
+        Effect = "Allow"
+
+        Action = "secretsmanager:GetSecretValue"
+
+        Resource = aws_secretsmanager_secret.datadog_api_key.arn
+      },
+
     ]
   })
 }

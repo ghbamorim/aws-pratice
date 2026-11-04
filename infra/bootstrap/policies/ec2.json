@@ -71,7 +71,7 @@
       "Resource": "arn:aws:ec2:us-east-2:242627333067:instance/*",
       "Condition": {
         "StringNotEquals": {
-          "ec2:InstanceType": "t3.micro"
+          "ec2:InstanceType": ["t3.micro", "t3.small"]
         }
       }
     },

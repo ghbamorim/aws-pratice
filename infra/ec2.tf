@@ -65,10 +65,10 @@ resource "aws_iam_instance_profile" "ec2" {
 locals {
   ec2_user_data = <<-EOF
     #!/bin/bash
-    set -euxo pipefail
+    set -euo pipefail
 
     dnf update -y
-    dnf install -y docker amazon-ssm-agent
+    dnf install -y docker amazon-ssm-agent awscli python3
 
     systemctl enable --now docker
     systemctl enable --now amazon-ssm-agent
@@ -82,13 +82,101 @@ locals {
     chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
     docker compose version
+    
+    # Store non-sensitive database connection settings.
+    cat > /etc/aws-pratice-deploy.env <<'CONFIG'
+    SECRET_ARN='${aws_db_instance.postgres.master_user_secret[0].secret_arn}'
+    DB_HOST='${aws_db_instance.postgres.address}'
+    DB_NAME='${aws_db_instance.postgres.db_name}'
+    CONFIG
+
+    chmod 600 /etc/aws-pratice-deploy.env
+
+        
+    # Retrieve the Datadog API key from AWS Secrets Manager.
+    export AWS_RETRY_MODE=standard
+    export AWS_MAX_ATTEMPTS=10
+
+    for attempt in $(seq 1 30); do
+      if DD_API_KEY=$(aws secretsmanager get-secret-value \
+        --region us-east-2 \
+        --secret-id '${aws_secretsmanager_secret.datadog_api_key.arn}' \
+        --query SecretString \
+        --output text); then
+        break
+      fi
+
+      sleep 2
+    done
+
+    test -n "$DD_API_KEY" && test "$DD_API_KEY" != None
+
+    export DD_API_KEY
+    trap 'unset DD_API_KEY' EXIT
+
+    # Install Docker Single Step Instrumentation without a host Agent.
+    curl -fsSL --retry 5 \
+      https://install.datadoghq.com/scripts/install_script_agent7.sh \
+      -o /tmp/install_script_agent7.sh
+
+    DD_SITE=datadoghq.com \
+      DD_APM_INSTRUMENTATION_ENABLED=docker \
+      DD_APM_INSTRUMENTATION_LIBRARIES=python:3 \
+      DD_NO_AGENT_INSTALL=true \
+      bash /tmp/install_script_agent7.sh
+
+    rm /tmp/install_script_agent7.sh
+
+        
+    # Create shared Unix sockets for APM and DogStatsD.
+    mkdir -p /var/run/datadog
+
+    # Start the Datadog Agent container.
+    docker run -d \
+      --name dd-agent \
+      --restart unless-stopped \
+      -e DD_API_KEY \
+      -e DD_SITE=datadoghq.com \
+      -e DD_ENV=lab \
+      -e DD_APM_ENABLED=true \
+      -e DD_APM_NON_LOCAL_TRAFFIC=true \
+      -e DD_APM_RECEIVER_SOCKET=/var/run/datadog/apm.socket \
+      -e DD_DOGSTATSD_SOCKET=/var/run/datadog/dsd.socket \
+      -e DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true \
+      -e DD_LOGS_ENABLED=true \
+      -e DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true \
+      -v /var/run/datadog:/var/run/datadog \
+      -v /var/run/docker.sock:/var/run/docker.sock:ro \
+      -v /proc:/host/proc:ro \
+      -v /sys/fs/cgroup:/host/sys/fs/cgroup:ro \
+      -v /var/lib/docker/containers:/var/lib/docker/containers:ro \
+      registry.datadoghq.com/agent:7
+
+    unset DD_API_KEY
+
+
+    # Wait until the Datadog Agent becomes healthy.
+    for attempt in $(seq 1 60); do
+      if docker exec dd-agent agent health >/dev/null 2>&1; then
+        install -d /var/lib/aws-pratice
+        touch /var/lib/aws-pratice/observability-ready
+        exit 0
+      fi
+
+      sleep 5
+    done
+
+    echo "Datadog Agent did not become healthy" >&2
+    exit 1
+
+
   EOF
 }
 
 # EC2 instance for the application
 resource "aws_instance" "api" {
   ami                    = data.aws_ami.amazon_linux.id
-  instance_type          = "t3.micro"
+  instance_type          = "t3.small"
   subnet_id              = aws_subnet.ec2_public.id
   vpc_security_group_ids = [aws_security_group.api.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2.name
@@ -96,11 +184,12 @@ resource "aws_instance" "api" {
   associate_public_ip_address = true
 
   user_data                   = local.ec2_user_data
-  user_data_replace_on_change = false
+  user_data_replace_on_change = true
 
   metadata_options {
-    http_endpoint = "enabled"
-    http_tokens   = "required"
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
   }
 
   root_block_device {
@@ -116,11 +205,16 @@ resource "aws_instance" "api" {
     ManagedBy = "Terraform"
   }
 
+
   depends_on = [
     aws_route_table_association.ec2_public,
     aws_iam_role_policy_attachment.ec2_ssm,
-    aws_iam_role_policy_attachment.ec2_ecr
+    aws_iam_role_policy_attachment.ec2_ecr,
+    aws_iam_role_policy.ec2_application,
+    aws_secretsmanager_secret_version.datadog_api_key,
+    aws_vpc_security_group_egress_rule.api_outbound
   ]
+
 }
 
 # Stable public IP address

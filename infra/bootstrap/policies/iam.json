@@ -141,6 +141,20 @@
         "iam:PassRole"
       ],
       "Resource": "arn:aws:iam::242627333067:role/aws-pratice-lambda-role"
+    },
+    {
+      "Sid": "ManageDatadogIntegrationRole",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::242627333067:role/aws-pratice-datadog-integration"
     }
   ]
 }

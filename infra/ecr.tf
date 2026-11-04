@@ -12,6 +12,8 @@ resource "aws_ecr_repository" "fastapi" {
     encryption_type = "AES256"
   }
 
+  force_delete = true
+
   tags = {
     Name      = "aws-pratice-api"
     Project   = "aws-pratice"
@@ -31,6 +33,8 @@ resource "aws_ecr_repository" "frontend" {
   encryption_configuration {
     encryption_type = "AES256"
   }
+
+  force_delete = true
 
   tags = {
     Name      = "aws-pratice-frontend"
