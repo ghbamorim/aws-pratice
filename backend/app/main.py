@@ -7,6 +7,7 @@ import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from decimal import Decimal
+from ddtrace import tracer
 
 import boto3
 import httpx
@@ -172,15 +173,14 @@ def health():
 @app.get('/api/orders')
 def list_orders():
     with Session(engine) as session:
-        return [
-            serialize(order)
-            for order in session.scalars(
-                select(Order)
-                .order_by(Order.id.desc())
-                .limit(100)
-            )
-        ]
+        orders = session.scalars(
+            select(Order)
+            .order_by(Order.id.desc())
+            .limit(100)
+        ).all()
 
+        with tracer.trace('orders.serialize'):
+            return [serialize(order) for order in orders]
 
 @app.post('/api/orders', status_code=201)
 def create_order(payload: OrderInput):
