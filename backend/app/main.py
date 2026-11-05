@@ -7,12 +7,12 @@ import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from decimal import Decimal
-from ddtrace import tracer
 
 import boto3
 import httpx
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
+from ddtrace import tracer
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -169,18 +169,29 @@ def health():
 
     return {'status': 'ok'}
 
-
 @app.get('/api/orders')
 def list_orders():
-    with Session(engine) as session:
-        orders = session.scalars(
-            select(Order)
-            .order_by(Order.id.desc())
-            .limit(100)
-        ).all()
+    # Span que envolve toda a lógica da rota
+    with tracer.trace('orders.list', resource='list_orders') as span, Session(engine) as session:       
+            # Passo 1: buscar no banco (SQLAlchemy + Postgres)
+            with tracer.trace('orders.query'):
+                orders = session.scalars(
+                    select(Order)
+                    .order_by(Order.id.desc())
+                    .limit(100)
+                ).all()
 
-        with tracer.trace('orders.serialize'):
-            return [serialize(order) for order in orders]
+            # Guarda quantos pedidos vieram
+            span.set_metric('orders.count', len(orders))
+
+            # Passo 2: transformar em dicionários
+            with tracer.trace('orders.serialize'):
+                result = [serialize(order) for order in orders]
+
+        # Ao sair do "with Session", acontece o close/rollback,
+        # ainda dentro de orders.list
+
+    return result
 
 @app.post('/api/orders', status_code=201)
 def create_order(payload: OrderInput):
